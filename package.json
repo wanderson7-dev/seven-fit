@@ -1,0 +1,9 @@
+{
+  "name": "seven-fit",
+  "version": "1.0.0",
+  "description": "CuttingOS - App de cutting personalizado",
+  "scripts": {
+    "build": "echo 'static site'",
+    "start": "echo 'static site'"
+  }
+}
