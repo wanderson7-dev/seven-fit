@@ -7,6 +7,8 @@ export default function SettingsTab({
   state,
   user,
   supabase,
+  syncError,
+  clearSyncError,
   openEditDayModal,
   onImportSchedule,
   saveProfile,
@@ -172,6 +174,33 @@ export default function SettingsTab({
 
   return (
     <div>
+      {/* SYNC ERROR BANNER */}
+      {syncError && (
+        <div className="card" style={{ background: "rgba(239, 68, 68, 0.08)", borderColor: "rgba(239, 68, 68, 0.3)", marginBottom: "16px" }}>
+          <div style={{ fontWeight: "700", color: "#ef4444", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px", fontSize: "14px" }}>
+            ⚠️ Erro de Sincronização
+          </div>
+          <div style={{ fontSize: "12.5px", color: "rgba(255,255,255,0.8)", lineHeight: "1.45" }}>
+            Ocorreu um erro ao tentar salvar ou ler seus dados no Supabase:
+            <pre style={{
+              background: "rgba(0,0,0,0.3)",
+              padding: "10px",
+              borderRadius: "8px",
+              marginTop: "8px",
+              overflowX: "auto",
+              fontFamily: "monospace",
+              fontSize: "11px",
+              color: "#f87171"
+            }}>
+              {syncError}
+            </pre>
+            <p style={{ marginTop: "10px", fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>
+              Isso geralmente significa que as tabelas ou políticas RLS ainda não foram criadas no banco de dados. Veja o arquivo <code>DOCUMENTACAO.md</code> para o script SQL.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* CLOUD SYNC & AUTHENTICATION CARD */}
       {!supabase ? (
         <div className="card" style={{ background: "rgba(255, 255, 255, 0.02)", borderStyle: "dashed", borderColor: "rgba(255, 255, 255, 0.15)", marginBottom: "16px" }}>

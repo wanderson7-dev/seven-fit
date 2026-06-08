@@ -81,6 +81,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
 
   // Global State (matching DB representation)
   const [state, setState] = useState({
@@ -162,6 +163,7 @@ export default function Home() {
 
   const handleUserSignIn = async (currUser) => {
     setIsSyncing(true);
+    setSyncError(null);
     try {
       const dbData = await db.fetchUserData(currUser.id);
       if (dbData) {
@@ -191,6 +193,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Error syncing with Supabase:", error);
+      setSyncError(error.message || String(error));
     } finally {
       setIsHydrated(true);
       setIsSyncing(false);
@@ -946,6 +949,8 @@ export default function Home() {
                   state={state}
                   user={user}
                   supabase={supabase}
+                  syncError={syncError}
+                  clearSyncError={() => setSyncError(null)}
                   openEditDayModal={openEditDayModal}
                   onImportSchedule={async (importedSchedule) => {
                     if (user) {
