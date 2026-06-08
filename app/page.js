@@ -107,7 +107,6 @@ export default function Home() {
   const [historyExName, setHistoryExName] = useState("");
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [guideExName, setGuideExName] = useState("");
-
   // ── HYDRATION & LOADING STATE ──────────────────────────────────────────────
   const loadLocalState = () => {
     try {
@@ -121,17 +120,21 @@ export default function Home() {
       const profile = localStorage.getItem("co_profile");
       const mealPlan = localStorage.getItem("co_mealPlan");
 
+      const parsedSchedule = schedule ? JSON.parse(schedule) : null;
+      const parsedProfile = profile ? JSON.parse(profile) : null;
+      const parsedMealPlan = mealPlan ? JSON.parse(mealPlan) : null;
+
       return {
         foodLogs: foodLogs ? JSON.parse(foodLogs) : [],
         workoutLogs: workoutLogs ? JSON.parse(workoutLogs) : [],
         weightLogs: weightLogs ? JSON.parse(weightLogs) : [],
         customFoods: customFoods ? JSON.parse(customFoods) : [],
         customExercises: customExercises ? JSON.parse(customExercises) : {},
-        schedule: schedule ? JSON.parse(schedule) : DEFAULT_SCHEDULE,
+        schedule: (parsedSchedule && parsedSchedule.length === 7) ? parsedSchedule : DEFAULT_SCHEDULE,
         progressPhotos: progressPhotos ? JSON.parse(progressPhotos) : [],
         selectedFood: null,
-        profile: profile ? JSON.parse(profile) : DEFAULT_PROFILE,
-        mealPlan: mealPlan ? JSON.parse(mealPlan) : DEFAULT_MEAL_PLAN,
+        profile: parsedProfile ? parsedProfile : DEFAULT_PROFILE,
+        mealPlan: parsedMealPlan ? parsedMealPlan : DEFAULT_MEAL_PLAN,
       };
     } catch (error) {
       console.error("Error loading localStorage state:", error);
@@ -155,7 +158,6 @@ export default function Home() {
     }
   };
 
-  // Sync state to localStorage on changes
   const saveState = (updatedState) => {
     setState(updatedState);
     cacheToLocal(updatedState);
@@ -167,27 +169,39 @@ export default function Home() {
     try {
       const dbData = await db.fetchUserData(currUser.id);
       if (dbData) {
-        // User already has cloud data, load it!
-        setState((prev) => ({
-          ...prev,
-          ...dbData,
-          selectedFood: null
-        }));
-        cacheToLocal(dbData);
+        setState((prev) => {
+          const newState = {
+            ...prev,
+            foodLogs: dbData.foodLogs || [],
+            workoutLogs: dbData.workoutLogs || [],
+            weightLogs: dbData.weightLogs || [],
+            customFoods: dbData.customFoods || [],
+            customExercises: dbData.customExercises || {},
+            progressPhotos: dbData.progressPhotos || [],
+            schedule: (dbData.schedule && dbData.schedule.length === 7) ? dbData.schedule : prev.schedule,
+            profile: dbData.profile ? { ...prev.profile, ...dbData.profile } : prev.profile,
+            mealPlan: dbData.mealPlan || prev.mealPlan,
+            selectedFood: null
+          };
+          cacheToLocal(newState);
+          return newState;
+        });
       } else {
-        // First-time login! Migrate local data to Supabase
         const currentLocal = loadLocalState();
         if (currentLocal) {
           await db.migrateLocalData(currUser.id, currentLocal);
-          // Load it back from Supabase to ensure everything has correct IDs
           const syncedData = await db.fetchUserData(currUser.id);
           if (syncedData) {
-            setState((prev) => ({
-              ...prev,
-              ...syncedData,
-              selectedFood: null
-            }));
-            cacheToLocal(syncedData);
+            setState((prev) => {
+              const newState = {
+                ...prev,
+                ...syncedData,
+                schedule: (syncedData.schedule && syncedData.schedule.length === 7) ? syncedData.schedule : prev.schedule,
+                selectedFood: null
+              };
+              cacheToLocal(newState);
+              return newState;
+            });
           }
         }
       }
