@@ -359,32 +359,34 @@ export default function Home() {
 
   // ── STATE MUTATIONS ────────────────────────────────────────────────────────
   const saveWeightLog = async (value) => {
-    const logObj = { date: today(), value };
+    const localId = Date.now();
+    const logObj = { id: localId, date: today(), value };
+    
+    const updated = {
+      ...state,
+      weightLogs: [...state.weightLogs, logObj],
+    };
+    saveState(updated);
+
     if (user) {
       try {
         const savedLog = await db.addWeightLog(user.id, logObj);
-        if (savedLog) {
-          const updated = {
-            ...state,
-            weightLogs: [...state.weightLogs, { id: savedLog.id, date: savedLog.date, value: Number(savedLog.value) }],
-          };
-          saveState(updated);
+        if (savedLog && savedLog.id) {
+          setState(prev => ({
+            ...prev,
+            weightLogs: prev.weightLogs.map(w => w.id === localId ? { ...w, id: savedLog.id } : w)
+          }));
         }
       } catch (err) {
         console.error("Failed to save weight log to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        weightLogs: [...state.weightLogs, { id: Date.now(), ...logObj }],
-      };
-      saveState(updated);
     }
   };
 
   const saveCustomFood = async (foodSpec) => {
+    const localId = "c" + Date.now();
     const newFood = {
-      id: "c" + Date.now(),
+      id: localId,
       name: foodSpec.name,
       kcal: foodSpec.kcal,
       protein: foodSpec.protein,
@@ -392,39 +394,33 @@ export default function Home() {
       fat: foodSpec.fat,
       unit: "100g",
     };
+    
+    const updated = {
+      ...state,
+      customFoods: [...state.customFoods, newFood],
+    };
+    saveState(updated);
+
     if (user) {
       try {
         const savedFood = await db.addCustomFood(user.id, newFood);
-        if (savedFood) {
-          const updated = {
-            ...state,
-            customFoods: [...state.customFoods, {
-              id: savedFood.id,
-              name: savedFood.name,
-              kcal: Number(savedFood.kcal),
-              protein: Number(savedFood.protein),
-              carbs: Number(savedFood.carbs),
-              fat: Number(savedFood.fat),
-              unit: savedFood.unit
-            }],
-          };
-          saveState(updated);
+        if (savedFood && savedFood.id) {
+          setState(prev => ({
+            ...prev,
+            customFoods: prev.customFoods.map(f => f.id === localId ? { ...f, id: savedFood.id } : f)
+          }));
         }
       } catch (err) {
         console.error("Failed to save custom food to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        customFoods: [...state.customFoods, newFood],
-      };
-      saveState(updated);
     }
   };
 
   const addFoodLog = async (food, qty) => {
     const ratio = qty / 100;
+    const localId = Date.now();
     const newLog = {
+      id: localId,
       date: today(),
       foodName: food.name,
       qty,
@@ -433,119 +429,125 @@ export default function Home() {
       carbs: Math.round(food.carbs * ratio * 10) / 10,
       fat: Math.round(food.fat * ratio * 10) / 10,
     };
+    
+    const updated = {
+      ...state,
+      foodLogs: [...state.foodLogs, newLog],
+      selectedFood: null,
+    };
+    saveState(updated);
+
     if (user) {
       try {
         const savedLog = await db.addFoodLog(user.id, newLog);
-        if (savedLog) {
-          const updated = {
-            ...state,
-            foodLogs: [...state.foodLogs, {
+        if (savedLog && savedLog.id) {
+          setState(prev => ({
+            ...prev,
+            foodLogs: prev.foodLogs.map(l => l.id === localId ? {
+              ...l,
               id: savedLog.id,
-              date: savedLog.date,
               foodName: savedLog.food_name,
               qty: Number(savedLog.qty),
               kcal: Number(savedLog.kcal),
               protein: Number(savedLog.protein),
               carbs: Number(savedLog.carbs),
               fat: Number(savedLog.fat)
-            }],
-            selectedFood: null
-          };
-          saveState(updated);
+            } : l)
+          }));
         }
       } catch (err) {
         console.error("Failed to add food log to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        foodLogs: [...state.foodLogs, { id: Date.now(), ...newLog }],
-        selectedFood: null,
-      };
-      saveState(updated);
     }
   };
 
   const removeFoodLog = async (id) => {
+    const updated = {
+      ...state,
+      foodLogs: state.foodLogs.filter((l) => l.id !== id),
+    };
+    saveState(updated);
+
     if (user) {
       try {
         await db.deleteFoodLog(user.id, id);
-        const updated = {
-          ...state,
-          foodLogs: state.foodLogs.filter((l) => l.id !== id),
-        };
-        saveState(updated);
       } catch (err) {
         console.error("Failed to delete food log from cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        foodLogs: state.foodLogs.filter((l) => l.id !== id),
-      };
-      saveState(updated);
     }
   };
 
   const saveSessionWorkout = async (workoutSpec) => {
+    const localId = Date.now();
     const newWorkout = {
+      id: localId,
       date: today(),
       type: workoutSpec.type,
       exercises: workoutSpec.exercises,
       notes: workoutSpec.notes,
       volume: workoutSpec.volume,
     };
+    
+    const updated = {
+      ...state,
+      workoutLogs: [...state.workoutLogs, newWorkout],
+    };
+    saveState(updated);
+
     if (user) {
       try {
         const savedWorkout = await db.addWorkoutLog(user.id, newWorkout);
-        if (savedWorkout) {
-          const updated = {
-            ...state,
-            workoutLogs: [...state.workoutLogs, {
+        if (savedWorkout && savedWorkout.id) {
+          setState(prev => ({
+            ...prev,
+            workoutLogs: prev.workoutLogs.map(w => w.id === localId ? {
+              ...w,
               id: savedWorkout.id,
               date: savedWorkout.date,
               type: savedWorkout.type,
               exercises: savedWorkout.exercises,
               notes: savedWorkout.notes,
               volume: Number(savedWorkout.volume)
-            }],
-          };
-          saveState(updated);
+            } : w)
+          }));
         }
       } catch (err) {
         console.error("Failed to save workout to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        workoutLogs: [...state.workoutLogs, { id: Date.now(), ...newWorkout }],
-      };
-      saveState(updated);
     }
   };
 
   const removeWorkoutLog = async (id) => {
+    const updated = {
+      ...state,
+      workoutLogs: state.workoutLogs.filter((w) => w.id !== id),
+    };
+    saveState(updated);
+
     if (user) {
       try {
         await db.deleteWorkoutLog(user.id, id);
-        const updated = {
-          ...state,
-          workoutLogs: state.workoutLogs.filter((w) => w.id !== id),
-        };
-        saveState(updated);
       } catch (err) {
         console.error("Failed to delete workout from cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        workoutLogs: state.workoutLogs.filter((w) => w.id !== id),
-      };
-      saveState(updated);
     }
   };
 
   const saveProgressPhotos = async (photosSpec) => {
+    const localId = Date.now();
+    const localRecord = {
+      id: localId,
+      date: photosSpec.date,
+      week: photosSpec.week,
+      images: photosSpec.images,
+    };
+    
+    const updated = {
+      ...state,
+      progressPhotos: [...state.progressPhotos, localRecord],
+    };
+    saveState(updated);
+
     if (user) {
       try {
         setIsSyncing(true);
@@ -564,111 +566,77 @@ export default function Home() {
           images: uploadedImages
         };
         const savedPhoto = await db.addProgressPhoto(user.id, photoRecord);
-        if (savedPhoto) {
-          const updated = {
-            ...state,
-            progressPhotos: [...state.progressPhotos, {
+        if (savedPhoto && savedPhoto.id) {
+          setState(prev => ({
+            ...prev,
+            progressPhotos: prev.progressPhotos.map(p => p.id === localId ? {
+              ...p,
               id: savedPhoto.id,
-              date: savedPhoto.date,
-              week: savedPhoto.week,
               images: savedPhoto.image_urls
-            }],
-          };
-          saveState(updated);
+            } : p)
+          }));
         }
       } catch (err) {
         console.error("Failed to upload/save progress photos to cloud:", err);
       } finally {
         setIsSyncing(false);
       }
-    } else {
-      const updated = {
-        ...state,
-        progressPhotos: [...state.progressPhotos, {
-          id: Date.now(),
-          date: photosSpec.date,
-          week: photosSpec.week,
-          images: photosSpec.images,
-        }],
-      };
-      saveState(updated);
     }
   };
 
   const saveDayEdit = async (dayIndex, updatedDayObj) => {
     const updatedSched = [...state.schedule];
     updatedSched[dayIndex] = updatedDayObj;
+    
+    const updated = {
+      ...state,
+      schedule: updatedSched,
+    };
+    saveState(updated);
+
     if (user) {
       try {
         await db.saveSchedule(user.id, updatedSched);
-        const updated = {
-          ...state,
-          schedule: updatedSched,
-        };
-        saveState(updated);
       } catch (err) {
         console.error("Failed to save schedule to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        schedule: updatedSched,
-      };
-      saveState(updated);
     }
   };
 
   const saveProfile = async (updatedProfile) => {
+    const updated = {
+      ...state,
+      profile: updatedProfile,
+    };
+    saveState(updated);
+
     if (user) {
       try {
         await db.saveProfile(user.id, updatedProfile, state.mealPlan);
-        const updated = {
-          ...state,
-          profile: updatedProfile,
-        };
-        saveState(updated);
       } catch (err) {
         console.error("Failed to save profile to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        profile: updatedProfile,
-      };
-      saveState(updated);
     }
   };
 
   const saveMealPlan = async (newMealPlan) => {
+    const updated = {
+      ...state,
+      mealPlan: newMealPlan,
+    };
+    saveState(updated);
+
     if (user) {
       try {
         await db.saveProfile(user.id, state.profile, newMealPlan);
-        const updated = {
-          ...state,
-          mealPlan: newMealPlan,
-        };
-        saveState(updated);
       } catch (err) {
         console.error("Failed to save meal plan to cloud:", err);
       }
-    } else {
-      const updated = {
-        ...state,
-        mealPlan: newMealPlan,
-      };
-      saveState(updated);
     }
   };
 
   const onFoodScanned = async (scannedFood) => {
     const alreadyExists = state.customFoods.some((f) => f.id === scannedFood.id);
-    if (!alreadyExists && user) {
-      try {
-        await db.addCustomFood(user.id, scannedFood);
-      } catch (err) {
-        console.error("Failed to save scanned food to cloud:", err);
-      }
-    }
     const updatedCustomFoods = alreadyExists
       ? state.customFoods
       : [...state.customFoods, scannedFood];
@@ -679,6 +647,14 @@ export default function Home() {
       selectedFood: scannedFood,
     };
     saveState(updated);
+
+    if (!alreadyExists && user) {
+      try {
+        await db.addCustomFood(user.id, scannedFood);
+      } catch (err) {
+        console.error("Failed to save scanned food to cloud:", err);
+      }
+    }
   };
 
   const clearSelectedFood = () => {
@@ -695,37 +671,26 @@ export default function Home() {
 
   const saveCustomExercise = async (group, name) => {
     if (!group || !name) return;
+    
+    const updatedCustomExs = { ...state.customExercises };
+    if (!updatedCustomExs[group]) {
+      updatedCustomExs[group] = [];
+    }
+    if (!updatedCustomExs[group].includes(name)) {
+      updatedCustomExs[group].push(name);
+    }
+    const updated = {
+      ...state,
+      customExercises: updatedCustomExs,
+    };
+    saveState(updated);
+
     if (user) {
       try {
         await db.addCustomExercise(user.id, group, name);
-        const updatedCustomExs = { ...state.customExercises };
-        if (!updatedCustomExs[group]) {
-          updatedCustomExs[group] = [];
-        }
-        if (!updatedCustomExs[group].includes(name)) {
-          updatedCustomExs[group].push(name);
-        }
-        const updated = {
-          ...state,
-          customExercises: updatedCustomExs,
-        };
-        saveState(updated);
       } catch (err) {
         console.error("Failed to save custom exercise to cloud:", err);
       }
-    } else {
-      const updatedCustomExs = { ...state.customExercises };
-      if (!updatedCustomExs[group]) {
-        updatedCustomExs[group] = [];
-      }
-      if (!updatedCustomExs[group].includes(name)) {
-        updatedCustomExs[group].push(name);
-      }
-      const updated = {
-        ...state,
-        customExercises: updatedCustomExs,
-      };
-      saveState(updated);
     }
   };
 
