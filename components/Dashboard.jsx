@@ -101,14 +101,36 @@ export default function Dashboard({
   const tot = getTotals(logs);
 
   const wl = state.weightLogs || [];
+
+  // Peso atual = último log registrado, ou peso inicial do perfil se ainda não logou nada
   const lastW = wl.length ? wl[wl.length - 1].value : PROFILE.weight;
-  const firstW = wl.length ? wl[0].value : PROFILE.weight;
-  const lost = Math.max(0, firstW - lastW).toFixed(1);
-  const weeks = Math.max(1, Math.ceil(wl.length / 7));
-  const bfNow = Math.max(10, PROFILE.current_bf - lost * 0.15).toFixed(1);
-  
+
+  // Peso inicial = SEMPRE o peso cadastrado no perfil (referência real de onde começou)
+  const firstW = PROFILE.weight;
+
+  // Kg perdidos desde o início (nunca negativo — se ganhou peso, lost=0)
+  const lost = Math.max(0, firstW - lastW);
+
+  // Semanas desde o primeiro log de peso (ou 1 se ainda não tem logs)
+  const weeks = (() => {
+    if (!wl.length) return 1;
+    const firstDate = new Date(wl[0].date + "T12:00:00");
+    const today = new Date();
+    const diffDays = Math.max(1, Math.round((today - firstDate) / (1000 * 60 * 60 * 24)));
+    return Math.max(1, Math.ceil(diffDays / 7));
+  })();
+
+  // BF estimado: para cada 1kg perdido, assume redução proporcional à gordura corporal atual
+  // Usa a proporção: gordura perdida = lost * (current_bf / 100) * 0.75
+  // (estimativa conservadora: ~75% da perda vem de gordura, 25% de água/massa magra)
+  const fatKgLost = lost * (PROFILE.current_bf / 100) * 0.75;
+  const bfNow = Math.max(
+    PROFILE.goal_bf,
+    (PROFILE.current_bf - (fatKgLost / lastW) * 100)
+  ).toFixed(1);
+
   const bfDiffTotal = PROFILE.current_bf - PROFILE.goal_bf;
-  const bfLost = PROFILE.current_bf - bfNow;
+  const bfLost = PROFILE.current_bf - Number(bfNow);
   const bfProg = bfDiffTotal > 0 ? Math.min((bfLost / bfDiffTotal) * 100, 100).toFixed(0) : 100;
 
   const todayStr = new Date().toISOString().slice(0, 10);
