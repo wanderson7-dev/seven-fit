@@ -215,15 +215,18 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Always load from localStorage immediately so the app renders without waiting for network
+    const local = loadLocalState();
+    if (local) setState((prev) => ({ ...prev, ...local }));
+
     if (supabase) {
       // Get initial session
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           setUser(session.user);
+          setIsHydrated(true);
           handleUserSignIn(session.user);
         } else {
-          const local = loadLocalState();
-          if (local) setState((prev) => ({ ...prev, ...local }));
           setIsHydrated(true);
         }
       });
@@ -232,11 +235,12 @@ export default function Home() {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session) {
           setUser(session.user);
+          setIsHydrated(true);
           await handleUserSignIn(session.user);
         } else {
           setUser(null);
-          const local = loadLocalState();
-          if (local) setState((prev) => ({ ...prev, ...local }));
+          const updatedLocal = loadLocalState();
+          if (updatedLocal) setState((prev) => ({ ...prev, ...updatedLocal }));
           setIsHydrated(true);
         }
       });
@@ -245,8 +249,6 @@ export default function Home() {
         subscription.unsubscribe();
       };
     } else {
-      const local = loadLocalState();
-      if (local) setState((prev) => ({ ...prev, ...local }));
       setIsHydrated(true);
     }
   }, []);
