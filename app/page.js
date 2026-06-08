@@ -759,6 +759,147 @@ export default function Home() {
     );
   }
 
+  if (!user) {
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#0a0a0f",
+        padding: "24px",
+        color: "#fff",
+        fontFamily: "var(--font-sans, sans-serif)",
+        position: "relative",
+        overflow: "hidden"
+      }}>
+        {/* Glowing Background Orbs */}
+        <div style={{
+          position: "absolute",
+          width: "250px",
+          height: "250px",
+          background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, rgba(0,0,0,0) 70%)",
+          top: "20%",
+          left: "15%",
+          filter: "blur(40px)",
+          pointerEvents: "none"
+        }} />
+        <div style={{
+          position: "absolute",
+          width: "250px",
+          height: "250px",
+          background: "radial-gradient(circle, rgba(59,130,246,0.08) 0%, rgba(0,0,0,0) 70%)",
+          bottom: "20%",
+          right: "15%",
+          filter: "blur(40px)",
+          pointerEvents: "none"
+        }} />
+
+        <div className="card" style={{
+          maxWidth: "400px",
+          width: "100%",
+          textAlign: "center",
+          padding: "40px 32px",
+          background: "rgba(255, 255, 255, 0.02)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+          borderRadius: "24px",
+          position: "relative",
+          zIndex: 1,
+          boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+        }}>
+          {/* Logo */}
+          <div className="syne" style={{ fontSize: "32px", fontWeight: "900", letterSpacing: "-1.5px", marginBottom: "8px" }}>
+            CuttingOS <span style={{ color: "#f97316", textShadow: "0 0 12px #f97316" }}>●</span>
+          </div>
+          <div className="syne" style={{ fontSize: "12px", fontWeight: "800", color: "#3b82f6", textTransform: "uppercase", letterSpacing: "2px", marginBottom: "24px" }}>
+            Alta Performance
+          </div>
+
+          <p style={{ fontSize: "14px", color: "rgba(255, 255, 255, 0.6)", lineHeight: "1.6", marginBottom: "32px" }}>
+            Monitore seus treinos, gerencie suas metas calóricas, calcule seu déficit diário e acompanhe sua evolução física de forma segura na nuvem.
+          </p>
+
+          {!supabase ? (
+            <div style={{
+              background: "rgba(239, 68, 68, 0.06)",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              borderRadius: "16px",
+              padding: "16px",
+              textAlign: "left",
+              fontSize: "12.5px",
+              lineHeight: "1.45",
+              color: "rgba(255,255,255,0.8)"
+            }}>
+              <div style={{ fontWeight: "700", color: "#ef4444", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                ⚠️ Supabase Não Configurado
+              </div>
+              Certifique-se de configurar as variáveis de ambiente <code>NEXT_PUBLIC_SUPABASE_URL</code> e <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> no seu arquivo <code>.env.local</code> para habilitar o login.
+            </div>
+          ) : (
+            <button
+              className="btn-login-google"
+              style={{
+                width: "100%",
+                background: "#fff",
+                color: "#0a0a0f",
+                fontWeight: "800",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                padding: "14px",
+                borderRadius: "16px",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "14px",
+                transition: "all 0.2s ease",
+                boxShadow: "0 4px 12px rgba(255,255,255,0.15)"
+              }}
+              onClick={async () => {
+                try {
+                  const { error } = await supabase.auth.signInWithOAuth({
+                    provider: "google",
+                    options: {
+                      redirectTo: window.location.origin
+                    }
+                  });
+                  if (error) throw error;
+                } catch (err) {
+                  console.error("Erro no login:", err.message);
+                }
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Entrar com o Google
+            </button>
+          )}
+
+          <div style={{ marginTop: "32px", fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>
+            Ao entrar, você concorda com o salvamento seguro dos seus dados.
+          </div>
+        </div>
+
+        <style dangerouslySetInnerHTML={{ __html: `
+          .btn-login-google:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,255,255,0.25);
+            background: #f4f4f5 !important;
+          }
+          .btn-login-google:active {
+            transform: translateY(0);
+          }
+        ` }} />
+      </div>
+    );
+  }
+
   const currentSched = todaySched();
 
   return (
