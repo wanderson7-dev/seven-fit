@@ -17,6 +17,7 @@ export default function WorkoutTab({
 }) {
   const [activeSubTab, setActiveSubTab] = useState("session");
   const [histWrkDate, setHistWrkDate] = useState("");
+  const [sessionDate, setSessionDate] = useState(() => today());
 
   // Session State
   const [activeEx, setActiveEx] = useState(null);
@@ -141,6 +142,7 @@ export default function WorkoutTab({
     }, 0);
 
     saveSessionWorkout({
+      date: sessionDate,
       type: s.type,
       exercises: finalExs,
       notes: sessionNotes,
@@ -223,6 +225,26 @@ export default function WorkoutTab({
       {/* SESSÃO SUB-TAB */}
       {activeSubTab === "session" && (
         <div>
+          {/* Session Date Picker */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+            <input
+              type="date"
+              value={sessionDate}
+              max={today()}
+              onChange={(e) => setSessionDate(e.target.value || today())}
+              style={{ flex: 1, fontWeight: "600", fontSize: "13px" }}
+            />
+            {sessionDate !== today() && (
+              <button
+                className="btn btn-ghost"
+                style={{ padding: "10px 14px", fontSize: "12px", flexShrink: 0 }}
+                onClick={() => setSessionDate(today())}
+              >
+                Hoje
+              </button>
+            )}
+          </div>
+
           {/* Active exercise editor */}
           {activeEx ? (
             <div className="card">
@@ -522,14 +544,15 @@ export default function WorkoutTab({
             </div>
           )}
 
-          {/* Today's saved workouts */}
+          {/* Saved workouts for the selected session date */}
           {(() => {
-            const todayWorkouts = state.workoutLogs.filter((w) => w.date === today());
+            const todayWorkouts = state.workoutLogs.filter((w) => w.date === sessionDate);
             if (!todayWorkouts.length) return null;
             return (
               <div className="card">
                 <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <CheckCircle2 size={14} style={{ color: "#10b981" }} /> Treinos salvos hoje
+                  <CheckCircle2 size={14} style={{ color: "#10b981" }} />
+                  {sessionDate === today() ? "Treinos salvos hoje" : `Treinos salvos em ${fmtDate(sessionDate)}`}
                 </div>
                 {todayWorkouts.map((w) => (
                   <div className="workout-item" key={w.id}>

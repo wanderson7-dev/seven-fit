@@ -435,12 +435,12 @@ export default function Home() {
     }
   };
 
-  const addFoodLog = async (food, qty) => {
+  const addFoodLog = async (food, qty, logDate) => {
     const ratio = qty / 100;
     const localId = Date.now();
     const newLog = {
       id: localId,
-      date: today(),
+      date: logDate || today(),
       foodName: food.name,
       qty,
       kcal: Math.round(food.kcal * ratio),
@@ -500,7 +500,7 @@ export default function Home() {
     const localId = Date.now();
     const newWorkout = {
       id: localId,
-      date: today(),
+      date: workoutSpec.date || today(),
       type: workoutSpec.type,
       exercises: workoutSpec.exercises,
       notes: workoutSpec.notes,

@@ -13,52 +13,80 @@ export default function Header({ todaySched, user, isSyncing }) {
   const schedColor = todaySched?.color || "#f97316";
 
   return (
-    <div style={{ padding: "24px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div style={{ padding: "28px 20px 4px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
       <div>
-        <div className="small" style={{ marginBottom: "2px", display: "flex", alignItems: "center", gap: "6px" }}>
-          <span>{getFormattedDate()}</span>
+        {/* Date + sync badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+          <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", fontWeight: "500", textTransform: "capitalize" }}>
+            {getFormattedDate()}
+          </span>
+
           {isSyncing && (
-            <span style={{ display: "inline-flex", alignItems: "center", color: "#f97316", gap: "4px" }}>
-              <RefreshCw size={10} style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontSize: "9px" }}>sincronizando...</span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              background: "rgba(249,115,22,0.14)", border: "1px solid rgba(249,115,22,0.25)",
+              color: "#f97316", borderRadius: "99px", padding: "2px 8px", fontSize: "9px", fontWeight: "700",
+            }}>
+              <RefreshCw size={9} style={{ animation: "spin 1s linear infinite" }} />
+              SINCRONIZANDO
             </span>
           )}
+
           {!isSyncing && user && (
-            <span style={{ display: "inline-flex", alignItems: "center", color: "#10b981", gap: "3px" }}>
-              <Cloud size={11} />
-              <span style={{ fontSize: "9px" }}>nuvem ativa</span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.22)",
+              color: "#10b981", borderRadius: "99px", padding: "2px 8px", fontSize: "9px", fontWeight: "700",
+            }}>
+              <Cloud size={9} />
+              NUVEM ATIVA
             </span>
           )}
+
           {!isSyncing && !user && (
-            <span style={{ display: "inline-flex", alignItems: "center", color: "rgba(255,255,255,0.3)", gap: "3px" }}>
-              <CloudOff size={11} />
-              <span style={{ fontSize: "9px" }}>modo visitante</span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.35)", borderRadius: "99px", padding: "2px 8px", fontSize: "9px", fontWeight: "700",
+            }}>
+              <CloudOff size={9} />
+              VISITANTE
             </span>
           )}
         </div>
-        <div className="syne" style={{ fontSize: "22px", fontWeight: "800", letterSpacing: "-0.5px" }}>
-          CuttingOS <span style={{ color: schedColor }}>●</span>
+
+        {/* App name */}
+        <div className="syne" style={{ fontSize: "26px", fontWeight: "800", letterSpacing: "-0.8px", lineHeight: 1.1 }}>
+          CuttingOS{" "}
+          <span style={{
+            color: schedColor,
+            filter: `drop-shadow(0 0 8px ${schedColor}88)`,
+          }}>●</span>
         </div>
       </div>
+
+      {/* Today's workout badge */}
       {todaySched && (
-        <div
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            borderRadius: "12px",
-            padding: "8px 14px",
-            fontSize: "11px",
-            fontWeight: "600",
-            color: schedColor,
-            border: `1px solid ${schedColor}30`,
-          }}
-        >
+        <div style={{
+          background: `${schedColor}18`,
+          border: `1px solid ${schedColor}35`,
+          borderRadius: "14px",
+          padding: "9px 14px",
+          fontSize: "11px",
+          fontWeight: "700",
+          color: schedColor,
+          maxWidth: "130px",
+          textAlign: "center",
+          lineHeight: 1.3,
+          letterSpacing: "0.1px",
+        }}>
           {todaySched.type}
         </div>
       )}
+
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}} />
     </div>
   );
 }
-

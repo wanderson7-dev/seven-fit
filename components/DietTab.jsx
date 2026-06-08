@@ -43,6 +43,7 @@ export default function DietTab({
   const [foodSearch, setFoodSearch] = useState("");
   const [selectedFood, setSelectedFood] = useState(null);
   const [foodQty, setFoodQty] = useState("100");
+  const [logDate, setLogDate] = useState(() => today());
   const [histDietDate, setHistDietDate] = useState("");
   const [planStatus, setPlanStatus] = useState({ type: "", message: "" });
 
@@ -82,7 +83,7 @@ export default function DietTab({
   const [cfFat, setCfFat] = useState("");
 
   const t = getTargets();
-  const logs = todayFoodLogs();
+  const logs = state.foodLogs.filter((l) => l.date === logDate);
   const tot = getTotals(logs);
 
   // Initialize historical date
@@ -106,7 +107,7 @@ export default function DietTab({
   const handleAddLog = () => {
     if (!selectedFood) return;
     const qty = parseFloat(foodQty) || 100;
-    addFoodLog(selectedFood, qty);
+    addFoodLog(selectedFood, qty, logDate);
     setSelectedFood(null);
     setFoodQty("100");
     setFoodSearch("");
@@ -253,6 +254,28 @@ export default function DietTab({
       {/* REGISTRAR SUB-TAB */}
       {activeSubTab === "log" && (
         <div>
+          {/* Date Picker */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+            <div style={{ flex: 1, position: "relative" }}>
+              <input
+                type="date"
+                value={logDate}
+                max={today()}
+                onChange={(e) => setLogDate(e.target.value || today())}
+                style={{ paddingLeft: "14px", fontWeight: "600", fontSize: "13px" }}
+              />
+            </div>
+            {logDate !== today() && (
+              <button
+                className="btn btn-ghost"
+                style={{ padding: "10px 14px", fontSize: "12px", flexShrink: 0 }}
+                onClick={() => setLogDate(today())}
+              >
+                Hoje
+              </button>
+            )}
+          </div>
+
           <div className="row" style={{ gap: "10px", marginBottom: "10px" }}>
             <div style={{ position: "relative", flex: 1 }}>
               <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)" }} />
@@ -426,8 +449,10 @@ export default function DietTab({
             </div>
           )}
 
-          {/* Registered Today List */}
-          <div className="section-title">Registrado hoje</div>
+          {/* Registered Day List */}
+          <div className="section-title">
+            {logDate === today() ? "Registrado hoje" : `Registrado em ${fmtDate(logDate)}`}
+          </div>
           {!logs.length ? (
             <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "24px" }}>
               Nenhum alimento registrado
