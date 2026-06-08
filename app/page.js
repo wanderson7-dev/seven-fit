@@ -595,6 +595,7 @@ export default function Home() {
         }
       } catch (err) {
         console.error("Failed to upload/save progress photos to cloud:", err);
+        setSyncError(`Fotos de progresso: ${err.message || String(err)}`);
       } finally {
         setIsSyncing(false);
       }
