@@ -247,7 +247,7 @@ export default function WorkoutTab({
             {ALL_GROUPS.map((g) => (
               <button key={g} onClick={() => { if (!sessionStarted) { setSelectedGroup(selectedGroup === g ? null : g); } else { setSelectedGroup(g); } }}
                 style={{ padding: "7px 14px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", transition: "all 0.18s",
-                  background: activeGroup === g ? s.color : "rgba(255,255,255,0.07)", color: activeGroup === g ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                  background: activeGroup === g ? "#f97316" : "rgba(255,255,255,0.07)", color: activeGroup === g ? "#fff" : "rgba(255,255,255,0.5)" }}>
                 {g}
               </button>
             ))}
@@ -267,7 +267,7 @@ export default function WorkoutTab({
               }).filter((t) => t.count > 0);
 
               return (
-                <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${isOpen ? s.color + "50" : "rgba(255,255,255,0.07)"}`, borderRadius: "16px", overflow: "hidden", marginBottom: "8px", transition: "border-color 0.2s" }}>
+                <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${isOpen ? "#f97316" + "50" : "rgba(255,255,255,0.07)"}`, borderRadius: "16px", overflow: "hidden", marginBottom: "8px", transition: "border-color 0.2s" }}>
 
                   {/* Cabeçalho — toca para abrir/fechar */}
                   <div onClick={() => setExpandedEx(isOpen ? null : exIdx)}
@@ -339,7 +339,7 @@ export default function WorkoutTab({
                           onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)}
                           style={{ flex: 1, textAlign: "center" }} />
                         <button onClick={() => handleAddSet(exIdx)}
-                          style={{ flexShrink: 0, width: "42px", height: "42px", borderRadius: "12px", border: "none", cursor: "pointer", background: s.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          style={{ flexShrink: 0, width: "42px", height: "42px", borderRadius: "12px", border: "none", cursor: "pointer", background: "#f97316", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <CheckCircle2 size={18} />
                         </button>
                       </div>
@@ -365,9 +365,9 @@ export default function WorkoutTab({
                     <div key={muscle} style={{ marginBottom: "14px" }}>
                       {/* Header do músculo */}
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ height: "1px", flex: 1, background: `${s.color}40` }} />
-                        <span style={{ fontSize: "11px", fontWeight: "800", color: s.color, textTransform: "uppercase", letterSpacing: "0.8px", whiteSpace: "nowrap" }}>{muscle}</span>
-                        <div style={{ height: "1px", flex: 1, background: `${s.color}40` }} />
+                        <div style={{ height: "1px", flex: 1, background: "rgba(249,115,22,0.35)" }} />
+                        <span style={{ fontSize: "11px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px", whiteSpace: "nowrap" }}>{muscle}</span>
+                        <div style={{ height: "1px", flex: 1, background: "rgba(249,115,22,0.35)" }} />
                       </div>
                       {inGroup.map((ex) => {
                         const exIdx = sessionExs.indexOf(ex);
@@ -396,7 +396,7 @@ export default function WorkoutTab({
           {hasSets && (
             <div className="card">
               <textarea placeholder="Observações do treino..." value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} style={{ height: "56px", marginBottom: "10px" }} />
-              <button className="btn btn-primary" style={{ width: "100%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={handleSaveWorkout}>
+              <button className="btn btn-primary" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={handleSaveWorkout}>
                 <Save size={15} /> Salvar Treino
               </button>
             </div>
