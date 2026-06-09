@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Flame, CheckCircle2, BookOpen, History, X, Plus, Save, Zap, Droplets, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 // Sub-grupamentos musculares por tipo de treino
@@ -44,7 +44,6 @@ function getMuscle(group, name) {
 export default function WorkoutTab({
   state,
   saveSessionWorkout,
-  updateSessionWorkout,
   removeWorkoutLog,
   getExercises,
   saveCustomExercise,
@@ -68,9 +67,6 @@ export default function WorkoutTab({
   const [sessionExs, setSessionExs] = useState([]); // [{name, sets:[{type,weight,reps}]}]
   const [sessionNotes, setSessionNotes] = useState("");
   const [sessionStarted, setSessionStarted] = useState(false);
-  const [liveLogId, setLiveLogId] = useState(null); // ID do registro ativo no workout_logs
-  const liveLogIdRef = useRef(null); // ref para acessar valor atual mesmo em callbacks async
-  const autoSaveTimer = useRef(null);
 
   const [expandedEx, setExpandedEx] = useState(null); // índice do card aberto
   const [serieType, setSerieType] = useState("valida");
@@ -127,37 +123,6 @@ export default function WorkoutTab({
     return { lastWeight: mx.weight, lastReps: mx.reps, vol };
   };
 
-  // Mantém ref sincronizado com state para uso em callbacks async
-  useEffect(() => { liveLogIdRef.current = liveLogId; }, [liveLogId]);
-
-  // Auto-save reativo: dispara sempre que sessionExs muda e há pelo menos 1 série
-  useEffect(() => {
-    if (!sessionStarted) return;
-    const exsWithSets = sessionExs.filter((ex) => ex.sets.length > 0);
-    if (!exsWithSets.length) return;
-
-    // Debounce 400ms para não disparar em cada keystroke
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      const volume = exsWithSets.reduce((tot, ex) =>
-        tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
-      const spec = { date: sessionDate, type: s.type, exercises: exsWithSets, notes: sessionNotes, volume };
-
-      if (liveLogIdRef.current) {
-        // Atualiza registro existente
-        updateSessionWorkout(liveLogIdRef.current, spec);
-      } else {
-        // Cria novo e guarda ID via ref para evitar stale closure
-        saveSessionWorkout(spec).then((newId) => {
-          if (newId) {
-            liveLogIdRef.current = newId;
-            setLiveLogId(newId);
-          }
-        });
-      }
-    }, 400);
-  }, [sessionExs, sessionStarted]);
-
   // ── handlers de séries ───────────────────────────────────────
   const handleAddSet = (exIdx) => {
     const w = parseFloat(serieWeight);
@@ -194,13 +159,22 @@ export default function WorkoutTab({
     setExSearch("");
   };
 
-  // Reseta a sessão para um novo treino
+  const handleSaveWorkout = () => {
+    const finalExs = sessionExs.filter((ex) => ex.sets.length > 0);
+    if (!finalExs.length) return;
+    const volume = finalExs.reduce((tot, ex) =>
+      tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
+    saveSessionWorkout({ date: sessionDate, type: s.type, exercises: finalExs, notes: sessionNotes, volume });
+    setSessionExs(activeGroup ? (workoutPlans[activeGroup] || []).map((n) => ({ name: n, sets: [] })) : []);
+    setSessionNotes("");
+    setSessionStarted(false);
+    setExpandedEx(null);
+  };
+
   const resetSession = () => {
     setSessionExs(activeGroup ? (workoutPlans[activeGroup] || []).map((n) => ({ name: n, sets: [] })) : []);
     setSessionNotes("");
     setSessionStarted(false);
-    setLiveLogId(null);
-    liveLogIdRef.current = null;
     setExpandedEx(null);
   };
 
@@ -429,14 +403,12 @@ export default function WorkoutTab({
             </div>
           )}
 
-          {/* Indicador de auto-save + botão Novo Treino */}
+          {/* Salvar treino */}
           {hasSets && (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-              <div style={{ flex: 1, fontSize: "11px", color: "#10b981", display: "flex", alignItems: "center", gap: "5px" }}>
-                <CheckCircle2 size={13} /> Séries salvas automaticamente
-              </div>
-              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "8px 14px", flexShrink: 0 }} onClick={resetSession}>
-                Novo treino
+            <div className="card">
+              <textarea placeholder="Observações do treino..." value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} style={{ height: "56px", marginBottom: "10px" }} />
+              <button className="btn btn-primary" style={{ width: "100%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={handleSaveWorkout}>
+                <Save size={15} /> Salvar Treino
               </button>
             </div>
           )}
