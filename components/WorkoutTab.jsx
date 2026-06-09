@@ -443,16 +443,28 @@ export default function WorkoutTab({
                 </div>
                 {saved.map((w) => (
                   <div className="workout-item" key={w.id}>
-                    <div className="row-sb" style={{ marginBottom: "6px" }}>
-                      <span style={{ fontWeight: "600" }}>{w.type}</span>
+                    <div className="row-sb" style={{ marginBottom: "10px" }}>
+                      <span style={{ fontWeight: "700" }}>{w.type}</span>
                       <div className="row" style={{ gap: "8px" }}>
-                        <span className="small">Vol: {w.volume}kg</span>
+                        <span className="small">Vol total: {w.volume}kg</span>
                         <button className="btn-danger" onClick={() => removeWorkoutLog(w.id)} style={{ padding: "3px 7px", display: "flex", alignItems: "center" }}><X size={11} /></button>
                       </div>
                     </div>
                     {(w.exercises || []).map((ex, ei) => (
-                      <div key={ei} style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)", marginBottom: "2px" }}>
-                        <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: "500" }}>{ex.name}</span> — {ex.sets.filter((x) => x.type === "valida").length}v · {ex.sets.filter((x) => x.type === "aquecimento").length}aq · {ex.sets.filter((x) => x.type === "pap").length}pap · {ex.sets.filter((x) => x.type === "feeder").length}fd
+                      <div key={ei} style={{ marginBottom: "10px" }}>
+                        <div style={{ fontWeight: "600", fontSize: "13px", marginBottom: "5px" }}>{ex.name}</div>
+                        {ex.sets.map((set, si) => {
+                          const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                          return (
+                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <span style={{ color: ts.color, display: "flex", alignItems: "center", gap: "3px", minWidth: "80px" }}>
+                                {setTypeIcon(ts.id, 11)} {ts.label}
+                              </span>
+                              <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
+                              <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>= {set.weight * set.reps}kg</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
@@ -588,11 +600,12 @@ export default function WorkoutTab({
                       {ex.sets.map((set, sIdx) => {
                         const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
                         return (
-                          <div key={sIdx} style={{ fontSize: "11px", display: "flex", gap: "8px", color: "rgba(255,255,255,0.5)", alignItems: "center", marginBottom: "2px" }}>
+                          <div key={sIdx} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                             <span style={{ color: ts.color, fontWeight: "600", minWidth: "80px", display: "flex", alignItems: "center", gap: "3px" }}>
                               {setTypeIcon(ts.id, 10)} {ts.label}
                             </span>
-                            <span>{set.weight}kg × {set.reps}</span>
+                            <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
+                            <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>= {set.weight * set.reps}kg</span>
                           </div>
                         );
                       })}
