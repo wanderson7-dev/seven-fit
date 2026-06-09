@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Camera, Cloud, Upload, Download, Trash2, Settings, Flame, X } from "lucide-react";
+import { Search, Camera, Cloud, Upload, Download, Trash2, Settings, Flame, X, Plus, ChevronDown, ChevronUp, History } from "lucide-react";
 
 // Reusable ProgressBar Component
 function ProgressBar({ val, max, color, label, unit = "" }) {
@@ -48,6 +48,15 @@ export default function DietTab({
   const [logDate, setLogDate] = useState(() => today());
   const [activeMeal, setActiveMeal] = useState(null); // qual refeição está com busca aberta
   const [histDietDate, setHistDietDate] = useState("");
+  const [foodsTab, setFoodsTab] = useState("meus"); // "meus" | "biblioteca"
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [libSearch, setLibSearch] = useState("");
+  const [libFoods, setLibFoods] = useState([]);
+  const [isLibSearching, setIsLibSearching] = useState(false);
+  // food picked from Alimentos tab (needs meal + qty selection)
+  const [pickedFood, setPickedFood] = useState(null);
+  const [pickedQty, setPickedQty] = useState("100");
+  const [pickedMeal, setPickedMeal] = useState("Almoço");
   const [planStatus, setPlanStatus] = useState({ type: "", message: "" });
 
   // Live online food search state
@@ -115,6 +124,27 @@ export default function DietTab({
     setFoodQty("100");
     setFoodSearch("");
     setActiveMeal(null);
+  };
+
+  // Biblioteca search debounce
+  useEffect(() => {
+    if (!libSearch || libSearch.trim().length < 2) { setLibFoods([]); return; }
+    const t = setTimeout(async () => {
+      setIsLibSearching(true);
+      try {
+        const res = await fetch(`/api/food-search?query=${encodeURIComponent(libSearch)}`);
+        const data = await res.json();
+        if (res.ok && data.success) setLibFoods(data.foods);
+      } catch { /* ignore */ } finally { setIsLibSearching(false); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [libSearch]);
+
+  const handleAddPicked = () => {
+    if (!pickedFood) return;
+    addFoodLog(pickedFood, parseFloat(pickedQty) || 100, logDate, pickedMeal);
+    setPickedFood(null);
+    setPickedQty("100");
   };
 
   const openMealSearch = (meal) => {
@@ -246,7 +276,7 @@ export default function DietTab({
           { id: "log", label: "Registrar" },
           { id: "plan", label: "Plano" },
           { id: "hist", label: "Histórico" },
-          { id: "add", label: "+ Alimento" },
+          { id: "foods", label: "Alimentos" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -656,58 +686,185 @@ export default function DietTab({
       )}
 
       {/* + ALIMENTO SUB-TAB */}
-      {activeSubTab === "add" && (
+      {activeSubTab === "foods" && (
         <div>
-          <div className="card">
-            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", marginBottom: "16px" }}>
-              Cadastrar Alimento Manual
-            </div>
-            {[
-              { label: "Nome", val: cfName, set: setCfName, type: "text", placeholder: "Ex: Pasta de Amendoim" },
-              { label: "Calorias (por 100g)", val: cfKcal, set: setCfKcal, type: "number", placeholder: "Ex: 588" },
-              { label: "Proteína (g)", val: cfProtein, set: setCfProtein, type: "number", placeholder: "Ex: 24" },
-              { label: "Carboidrato (g)", val: cfCarbs, set: setCfCarbs, type: "number", placeholder: "Ex: 20" },
-              { label: "Gordura (g)", val: cfFat, set: setCfFat, type: "number", placeholder: "Ex: 49" },
-            ].map((inputSpec, index) => (
-              <div style={{ marginBottom: "10px" }} key={index}>
-                <div className="label">{inputSpec.label}</div>
-                <input
-                  type={inputSpec.type}
-                  value={inputSpec.val}
-                  onChange={(e) => inputSpec.set(e.target.value)}
-                  placeholder={inputSpec.placeholder}
-                />
-              </div>
+          {/* Inner tabs */}
+          <div style={{ display: "flex", gap: "4px", background: "rgba(255,255,255,0.045)", padding: "4px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.06)", marginBottom: "14px" }}>
+            {[{ id: "meus", label: "Meus Alimentos" }, { id: "biblioteca", label: "Biblioteca" }].map((t) => (
+              <button key={t.id} onClick={() => setFoodsTab(t.id)} style={{ flex: 1, padding: "9px 0", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s", background: foodsTab === t.id ? "#f97316" : "transparent", color: foodsTab === t.id ? "#fff" : "rgba(255,255,255,0.4)", boxShadow: foodsTab === t.id ? "0 2px 12px rgba(249,115,22,0.32)" : "none" }}>
+                {t.label}
+              </button>
             ))}
-            <button className="btn btn-primary" style={{ width: "100%", marginTop: "8px" }} onClick={handleSaveCustom}>
-              Salvar Alimento
-            </button>
+          </div>
 
-            {/* Custom Foods list */}
-            {state.customFoods.length > 0 && (
-              <div style={{ marginTop: "18px" }}>
-                <div className="section-title">Personalizados</div>
-                {state.customFoods.map((f) => (
-                  <div
-                    key={f.id}
-                    style={{
-                      fontSize: "13px",
-                      color: "rgba(255,255,255,0.6)",
-                      padding: "6px 0",
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      {f.name} {f.scanned && <Camera size={12} style={{ color: "#10b981" }} />}
-                    </span>
-                    <span style={{ color: "rgba(255,255,255,0.3)" }}>{f.kcal} kcal/100g</span>
+          {/* Picked food confirm panel */}
+          {pickedFood && (
+            <div style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.3)", borderRadius: "16px", padding: "14px", marginBottom: "14px" }}>
+              <div className="row-sb" style={{ marginBottom: "8px" }}>
+                <span style={{ fontWeight: "700", fontSize: "14px" }}>{pickedFood.name}</span>
+                <button style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)" }} onClick={() => setPickedFood(null)}><X size={16} /></button>
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <span style={{ color: "#f97316" }}><Flame size={11} style={{ display: "inline", verticalAlign: "middle" }} /> {pickedFood.kcal} kcal</span>
+                <span>C:{pickedFood.carbs}g</span><span>P:{pickedFood.protein}g</span><span>G:{pickedFood.fat}g</span>
+                <span style={{ color: "rgba(255,255,255,0.3)" }}>/{pickedFood.unit}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+                <div>
+                  <div className="label">Quantidade</div>
+                  <input type="number" value={pickedQty} onChange={(e) => setPickedQty(e.target.value)} placeholder="gramas" />
+                </div>
+                <div>
+                  <div className="label">Refeição</div>
+                  <select value={pickedMeal} onChange={(e) => setPickedMeal(e.target.value)}>
+                    {MEALS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleAddPicked}>
+                Adicionar ao {pickedMeal}
+              </button>
+            </div>
+          )}
+
+          {/* ── MEUS ALIMENTOS ── */}
+          {foodsTab === "meus" && (
+            <div>
+              {/* Recently used (from logs) */}
+              {(() => {
+                const usedNames = [...new Set(state.foodLogs.map(l => l.foodName))];
+                const recentFoods = usedNames.map(name => allFoods().find(f => f.name === name)).filter(Boolean);
+                return recentFoods.length > 0 ? (
+                  <div className="card" style={{ padding: "14px 16px", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px" }}>
+                      <History size={14} style={{ color: "#f97316" }} />
+                      <span style={{ fontSize: "12px", fontWeight: "700", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Usados recentemente</span>
+                    </div>
+                    {recentFoods.map((f) => (
+                      <div key={f.id} onClick={() => { setPickedFood(f); setPickedQty("100"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
+                        <div>
+                          <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
+                          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
+                            C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g · /{f.unit}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316", flexShrink: 0, marginLeft: "8px" }}>{f.kcal} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* All foods (default + custom) */}
+              <div className="card" style={{ padding: "14px 16px", marginBottom: "10px" }}>
+                <div style={{ fontSize: "12px", fontWeight: "700", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>
+                  Todos os Alimentos ({allFoods().length})
+                </div>
+                {allFoods().map((f) => (
+                  <div key={f.id} onClick={() => { setPickedFood(f); setPickedQty("100"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
+                    <div style={{ flex: 1, minWidth: 0, marginRight: "8px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "5px" }}>
+                        {f.name}
+                        {f.scanned && <Camera size={11} style={{ color: "#10b981", flexShrink: 0 }} />}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
+                        C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g · /{f.unit}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316", flexShrink: 0 }}>{f.kcal} kcal</span>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+
+              {/* Add custom food form */}
+              <div className="card" style={{ padding: "0", overflow: "hidden", marginBottom: "10px" }}>
+                <button onClick={() => setShowAddForm((v) => !v)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#f97316", fontSize: "13px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Plus size={16} /> Cadastrar Alimento Manual</span>
+                  {showAddForm ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {showAddForm && (
+                  <div style={{ padding: "0 16px 16px" }}>
+                    {[
+                      { label: "Nome", val: cfName, set: setCfName, type: "text", placeholder: "Ex: Pasta de Amendoim" },
+                      { label: "Calorias (por 100g)", val: cfKcal, set: setCfKcal, type: "number", placeholder: "Ex: 588" },
+                      { label: "Proteína (g)", val: cfProtein, set: setCfProtein, type: "number", placeholder: "Ex: 24" },
+                      { label: "Carboidrato (g)", val: cfCarbs, set: setCfCarbs, type: "number", placeholder: "Ex: 20" },
+                      { label: "Gordura (g)", val: cfFat, set: setCfFat, type: "number", placeholder: "Ex: 49" },
+                    ].map((s, i) => (
+                      <div style={{ marginBottom: "10px" }} key={i}>
+                        <div className="label">{s.label}</div>
+                        <input type={s.type} value={s.val} onChange={(e) => s.set(e.target.value)} placeholder={s.placeholder} />
+                      </div>
+                    ))}
+                    <button className="btn btn-primary" style={{ width: "100%", marginTop: "4px" }} onClick={() => { handleSaveCustom(); setShowAddForm(false); }}>
+                      Salvar Alimento
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── BIBLIOTECA ── */}
+          {foodsTab === "biblioteca" && (
+            <div>
+              <div style={{ position: "relative", marginBottom: "12px" }}>
+                <Search size={16} style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)" }} />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Buscar na base de dados..."
+                  value={libSearch}
+                  onChange={(e) => setLibSearch(e.target.value)}
+                  style={{ paddingLeft: "38px" }}
+                />
+              </div>
+
+              {isLibSearching && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px", color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>
+                  <div style={{ width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.1)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                  Buscando na biblioteca...
+                </div>
+              )}
+
+              {!libSearch && !isLibSearching && (
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>
+                  <Cloud size={32} style={{ margin: "0 auto 10px", display: "block", opacity: 0.3 }} />
+                  Digite o nome de um alimento para buscar na base de dados externa
+                </div>
+              )}
+
+              {libFoods.length > 0 && (
+                <div className="card" style={{ padding: "14px 16px" }}>
+                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Cloud size={11} style={{ color: "#f97316" }} /> {libFoods.length} resultados encontrados
+                  </div>
+                  {libFoods.map((f) => (
+                    <div key={f.id} onClick={() => { setPickedFood(f); setPickedQty("100"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
+                      <div style={{ flex: 1, minWidth: 0, marginRight: "8px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
+                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
+                          C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g · /{f.unit}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316", flexShrink: 0 }}>{f.kcal} kcal</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {libSearch && !isLibSearching && libFoods.length === 0 && (
+                <div style={{ textAlign: "center", padding: "30px 20px" }}>
+                  <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)", marginBottom: "12px" }}>
+                    Nenhum resultado para "{libSearch}"
+                  </div>
+                  <button className="btn" onClick={() => openScanner("label")} style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", color: "#f97316", fontSize: "12px", fontWeight: "700", padding: "8px 16px", borderRadius: "10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Camera size={14} /> Fotografar rótulo nutricional
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
