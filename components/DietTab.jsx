@@ -45,6 +45,8 @@ export default function DietTab({
   const [foodSearch, setFoodSearch] = useState("");
   const [selectedFood, setSelectedFood] = useState(null);
   const [foodQty, setFoodQty] = useState("100");
+  const [foodUnit, setFoodUnit] = useState("g"); // "g" | "fatia" | "un"
+  const [foodPortionSize, setFoodPortionSize] = useState(""); // grams per fatia/un
   const [logDate, setLogDate] = useState(() => today());
   const [activeMeal, setActiveMeal] = useState(null); // qual refeição está com busca aberta
   const [histDietDate, setHistDietDate] = useState("");
@@ -57,6 +59,8 @@ export default function DietTab({
   const [pickedFood, setPickedFood] = useState(null);
   const [pickedQty, setPickedQty] = useState("100");
   const [pickedMeal, setPickedMeal] = useState("Almoço");
+  const [pickedUnit, setPickedUnit] = useState("g");
+  const [pickedPortion, setPickedPortion] = useState("");
   const [planStatus, setPlanStatus] = useState({ type: "", message: "" });
 
   // Live online food search state
@@ -116,12 +120,23 @@ export default function DietTab({
     setFoodSearch(""); // Close dropdown after selection
   };
 
+  // Calcula gramas efetivos baseado na unidade escolhida
+  const effectiveGrams = () => {
+    const qty = parseFloat(foodQty) || 0;
+    if (foodUnit === "g") return qty;
+    const portion = parseFloat(foodPortionSize) || 0;
+    return qty * portion;
+  };
+
   const handleAddLog = () => {
     if (!selectedFood) return;
-    const qty = parseFloat(foodQty) || 100;
-    addFoodLog(selectedFood, qty, logDate, activeMeal);
+    const grams = effectiveGrams();
+    if (grams <= 0) return;
+    addFoodLog(selectedFood, grams, logDate, activeMeal);
     setSelectedFood(null);
     setFoodQty("100");
+    setFoodUnit("g");
+    setFoodPortionSize("");
     setFoodSearch("");
     setActiveMeal(null);
   };
@@ -142,9 +157,12 @@ export default function DietTab({
 
   const handleAddPicked = () => {
     if (!pickedFood) return;
-    addFoodLog(pickedFood, parseFloat(pickedQty) || 100, logDate, pickedMeal);
+    const grams = pickedUnit === "g" ? (parseFloat(pickedQty) || 100) : (parseFloat(pickedQty) || 1) * (parseFloat(pickedPortion) || 100);
+    addFoodLog(pickedFood, grams, logDate, pickedMeal);
     setPickedFood(null);
     setPickedQty("100");
+    setPickedUnit("g");
+    setPickedPortion("");
   };
 
   const openMealSearch = (meal) => {
@@ -332,14 +350,33 @@ export default function DietTab({
               {selectedFood ? (
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ fontWeight: "700", fontSize: "14px", marginBottom: "4px" }}>{selectedFood.name}</div>
-                  <div style={{ display: "flex", gap: "10px", fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: "8px", fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "10px", flexWrap: "wrap" }}>
                     <span style={{ color: "#f97316" }}><Flame size={11} style={{ display: "inline", verticalAlign: "middle" }} /> {selectedFood.kcal} kcal</span>
                     <span>C:{selectedFood.carbs}g</span><span>P:{selectedFood.protein}g</span><span>G:{selectedFood.fat}g</span>
-                    <span style={{ color: "rgba(255,255,255,0.3)" }}>/{selectedFood.unit}</span>
                   </div>
+                  {/* Seletor de unidade */}
+                  <div style={{ display: "flex", gap: "5px", marginBottom: "8px" }}>
+                    {["g", "fatia", "un"].map((u) => (
+                      <button key={u} onClick={() => { setFoodUnit(u); setFoodPortionSize(""); }}
+                        style={{ flex: 1, padding: "6px 0", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                          background: foodUnit === u ? "#f97316" : "rgba(255,255,255,0.07)", color: foodUnit === u ? "#fff" : "rgba(255,255,255,0.45)" }}>
+                        {u === "g" ? "Gramas" : u === "fatia" ? "Fatia" : "Unidade"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="row" style={{ gap: "8px", marginBottom: "8px" }}>
+                    <input type="number" placeholder={foodUnit === "g" ? "Gramas" : `Qtd ${foodUnit}`} value={foodQty} onChange={(e) => setFoodQty(e.target.value)} style={{ flex: 1 }} />
+                    {foodUnit !== "g" && (
+                      <input type="number" placeholder="g por porção" value={foodPortionSize} onChange={(e) => setFoodPortionSize(e.target.value)} style={{ flex: 1 }} />
+                    )}
+                  </div>
+                  {foodUnit !== "g" && foodQty && foodPortionSize && (
+                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
+                      = {parseFloat(foodQty) * parseFloat(foodPortionSize)}g total
+                    </div>
+                  )}
                   <div className="row" style={{ gap: "8px" }}>
-                    <input type="number" placeholder="gramas" value={foodQty} onChange={(e) => setFoodQty(e.target.value)} style={{ flex: 1 }} />
-                    <button className="btn btn-primary" onClick={handleAddLog}>Adicionar</button>
+                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAddLog}>Adicionar</button>
                     <button className="btn btn-ghost" style={{ padding: "10px 12px" }} onClick={() => setSelectedFood(null)}><X size={14} /></button>
                   </div>
                 </div>
@@ -751,11 +788,27 @@ export default function DietTab({
                 <span>C:{pickedFood.carbs}g</span><span>P:{pickedFood.protein}g</span><span>G:{pickedFood.fat}g</span>
                 <span style={{ color: "rgba(255,255,255,0.3)" }}>/{pickedFood.unit}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+              {/* Unidade */}
+              <div style={{ display: "flex", gap: "5px", marginBottom: "8px" }}>
+                {["g", "fatia", "un"].map((u) => (
+                  <button key={u} onClick={() => { setPickedUnit(u); setPickedPortion(""); }}
+                    style={{ flex: 1, padding: "6px 0", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                      background: pickedUnit === u ? "#f97316" : "rgba(255,255,255,0.07)", color: pickedUnit === u ? "#fff" : "rgba(255,255,255,0.45)" }}>
+                    {u === "g" ? "Gramas" : u === "fatia" ? "Fatia" : "Unidade"}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: pickedUnit !== "g" ? "1fr 1fr 1fr" : "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
                 <div>
-                  <div className="label">Quantidade</div>
-                  <input type="number" value={pickedQty} onChange={(e) => setPickedQty(e.target.value)} placeholder="gramas" />
+                  <div className="label">{pickedUnit === "g" ? "Gramas" : pickedUnit === "fatia" ? "Fatias" : "Unidades"}</div>
+                  <input type="number" value={pickedQty} onChange={(e) => setPickedQty(e.target.value)} placeholder="0" />
                 </div>
+                {pickedUnit !== "g" && (
+                  <div>
+                    <div className="label">g por porção</div>
+                    <input type="number" value={pickedPortion} onChange={(e) => setPickedPortion(e.target.value)} placeholder="0" />
+                  </div>
+                )}
                 <div>
                   <div className="label">Refeição</div>
                   <select value={pickedMeal} onChange={(e) => setPickedMeal(e.target.value)}>
@@ -763,6 +816,11 @@ export default function DietTab({
                   </select>
                 </div>
               </div>
+              {pickedUnit !== "g" && pickedQty && pickedPortion && (
+                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
+                  = {parseFloat(pickedQty) * parseFloat(pickedPortion)}g total
+                </div>
+              )}
               <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleAddPicked}>
                 Adicionar ao {pickedMeal}
               </button>
