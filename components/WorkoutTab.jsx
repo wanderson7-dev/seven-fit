@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Flame, CheckCircle2, BookOpen, History, X, Plus, Save, Zap, Droplets, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 // Sub-grupamentos musculares por tipo de treino
@@ -69,6 +69,8 @@ export default function WorkoutTab({
   const [sessionNotes, setSessionNotes] = useState("");
   const [sessionStarted, setSessionStarted] = useState(false);
   const [liveLogId, setLiveLogId] = useState(null); // ID do registro ativo no workout_logs
+  const liveLogIdRef = useRef(null); // ref para acessar valor atual mesmo em callbacks async
+  const autoSaveTimer = useRef(null);
 
   const [expandedEx, setExpandedEx] = useState(null); // índice do card aberto
   const [serieType, setSerieType] = useState("valida");
@@ -125,23 +127,36 @@ export default function WorkoutTab({
     return { lastWeight: mx.weight, lastReps: mx.reps, vol };
   };
 
-  // ── auto-save helper ────────────────────────────────────────
-  const autoSave = async (updatedExs) => {
-    const exsWithSets = updatedExs.filter((ex) => ex.sets.length > 0);
-    if (!exsWithSets.length) return;
-    const volume = exsWithSets.reduce((tot, ex) =>
-      tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
-    const spec = { date: sessionDate, type: s.type, exercises: exsWithSets, notes: sessionNotes, volume };
+  // Mantém ref sincronizado com state para uso em callbacks async
+  useEffect(() => { liveLogIdRef.current = liveLogId; }, [liveLogId]);
 
-    if (liveLogId) {
-      // Atualiza o registro existente
-      updateSessionWorkout(liveLogId, spec);
-    } else {
-      // Cria novo e guarda o ID
-      const newId = await saveSessionWorkout(spec);
-      if (newId) setLiveLogId(newId);
-    }
-  };
+  // Auto-save reativo: dispara sempre que sessionExs muda e há pelo menos 1 série
+  useEffect(() => {
+    if (!sessionStarted) return;
+    const exsWithSets = sessionExs.filter((ex) => ex.sets.length > 0);
+    if (!exsWithSets.length) return;
+
+    // Debounce 400ms para não disparar em cada keystroke
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      const volume = exsWithSets.reduce((tot, ex) =>
+        tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
+      const spec = { date: sessionDate, type: s.type, exercises: exsWithSets, notes: sessionNotes, volume };
+
+      if (liveLogIdRef.current) {
+        // Atualiza registro existente
+        updateSessionWorkout(liveLogIdRef.current, spec);
+      } else {
+        // Cria novo e guarda ID via ref para evitar stale closure
+        saveSessionWorkout(spec).then((newId) => {
+          if (newId) {
+            liveLogIdRef.current = newId;
+            setLiveLogId(newId);
+          }
+        });
+      }
+    }, 400);
+  }, [sessionExs, sessionStarted]);
 
   // ── handlers de séries ───────────────────────────────────────
   const handleAddSet = (exIdx) => {
@@ -149,13 +164,11 @@ export default function WorkoutTab({
     const r = parseInt(serieReps);
     if (isNaN(w) || isNaN(r) || w <= 0 || r <= 0) return;
     setSessionStarted(true);
-    setSessionExs((prev) => {
-      const updated = prev.map((ex, i) =>
+    setSessionExs((prev) =>
+      prev.map((ex, i) =>
         i === exIdx ? { ...ex, sets: [...ex.sets, { type: serieType, weight: w, reps: r }] } : ex
-      );
-      autoSave(updated); // ← salva automaticamente
-      return updated;
-    });
+      )
+    );
     setSerieWeight("");
     setSerieReps("");
   };
@@ -187,6 +200,7 @@ export default function WorkoutTab({
     setSessionNotes("");
     setSessionStarted(false);
     setLiveLogId(null);
+    liveLogIdRef.current = null;
     setExpandedEx(null);
   };
 
