@@ -77,6 +77,7 @@ export default function WorkoutTab({
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState("");
   const [newExName, setNewExName] = useState("");
+  const [newExGroup, setNewExGroup] = useState(null);
 
   // Plano sub-tab
   const [planGroup, setPlanGroup] = useState("Push");
@@ -386,39 +387,6 @@ export default function WorkoutTab({
             );
           })()}
 
-          {/* Adicionar exercício */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input
-              type="text"
-              placeholder="Nome do exercício..."
-              value={newExName}
-              onChange={(e) => setNewExName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const name = newExName.trim();
-                  if (!name) return;
-                  setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
-                  if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
-                  setNewExName("");
-                }
-              }}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="btn btn-primary"
-              style={{ flexShrink: 0, padding: "0 18px", whiteSpace: "nowrap" }}
-              onClick={() => {
-                const name = newExName.trim();
-                if (!name) return;
-                setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
-                if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
-                setNewExName("");
-              }}
-            >
-              + Criar
-            </button>
-          </div>
-
           {/* Salvar treino */}
           {hasSets && (
             <div className="card">
@@ -560,13 +528,42 @@ export default function WorkoutTab({
                   )}
                 </div>
 
-                {/* Criar exercício custom */}
-                {planSearch && !allForGroup.some((e) => e.toLowerCase() === planSearch.toLowerCase()) && (
-                  <div onClick={() => { addToPlan(planSearch); if (saveCustomExercise) saveCustomExercise(planGroup, planSearch); setPlanSearch(""); }}
-                    style={{ padding: "10px", borderRadius: "10px", cursor: "pointer", background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)", color: "#f97316", fontSize: "13px", fontWeight: "700", marginTop: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Plus size={14} /> Criar "{planSearch}"
+                {/* Criar exercício novo */}
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginTop: "12px", paddingTop: "12px" }}>
+                  <div className="label" style={{ marginBottom: "8px" }}>Criar exercício novo</div>
+                  <input
+                    type="text"
+                    placeholder="Nome do exercício..."
+                    value={newExName}
+                    onChange={(e) => setNewExName(e.target.value)}
+                    style={{ marginBottom: "8px" }}
+                  />
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+                    {ALL_GROUPS.map((g) => (
+                      <button key={g} onClick={() => setNewExGroup(g)}
+                        style={{ padding: "6px 14px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                          background: newExGroup === g ? "#f97316" : "rgba(255,255,255,0.07)", color: newExGroup === g ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                        {g}
+                      </button>
+                    ))}
                   </div>
-                )}
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: "100%" }}
+                    onClick={() => {
+                      const name = newExName.trim();
+                      if (!name || !newExGroup) return;
+                      if (saveCustomExercise) saveCustomExercise(newExGroup, name);
+                      // Adiciona ao plano do grupo escolhido
+                      const currentPlan = (workoutPlans && workoutPlans[newExGroup]) || [];
+                      if (!currentPlan.includes(name)) saveWorkoutPlan(newExGroup, [...currentPlan, name]);
+                      setNewExName("");
+                      setNewExGroup(null);
+                    }}
+                  >
+                    + Criar exercício
+                  </button>
+                </div>
               </div>
             )}
           </div>
