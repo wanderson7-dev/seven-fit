@@ -76,6 +76,7 @@ export default function WorkoutTab({
   // Busca para adicionar exercício extra
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState("");
+  const [newExName, setNewExName] = useState("");
 
   // Plano sub-tab
   const [planGroup, setPlanGroup] = useState("Push");
@@ -342,7 +343,7 @@ export default function WorkoutTab({
               );
             };
 
-            if (!activeGroup || sessionExs.length === 0) return null;
+            if (sessionExs.length === 0) return null;
 
             // Monta grupos musculares na ordem
             const muscleOrder = Object.keys(MUSCLE_SUBGROUPS[activeGroup] || {});
@@ -408,37 +409,40 @@ export default function WorkoutTab({
                   ))}
               </div>
 
-              {/* Criar exercício novo — sempre visível */}
+              {/* Criar exercício novo */}
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "10px" }}>
-                <div className="label" style={{ marginBottom: "6px" }}>Criar exercício novo</div>
-                <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+                <div className="label" style={{ marginBottom: "6px" }}>Criar novo exercício</div>
+                <div style={{ display: "flex", gap: "8px" }}>
                   <input
                     type="text"
                     placeholder="Ex: Crucifixo no cabo..."
-                    value={exSearch}
-                    onChange={(e) => setExSearch(e.target.value)}
+                    value={newExName}
+                    onChange={(e) => setNewExName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && exSearch.trim()) {
-                        const name = exSearch.trim();
-                        handleAddExToSession(name);
+                      if (e.key === "Enter") {
+                        const name = newExName.trim();
+                        if (!name) return;
+                        setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
                         if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
-                        setExSearch("");
+                        setNewExName("");
+                        setShowAddEx(false);
                       }
                     }}
                     style={{ flex: 1 }}
                   />
                   <button
                     className="btn btn-primary"
-                    style={{ flexShrink: 0, height: "auto", padding: "0 16px", display: "flex", alignItems: "center", gap: "5px" }}
+                    style={{ flexShrink: 0, padding: "0 16px", whiteSpace: "nowrap" }}
                     onClick={() => {
-                      const name = exSearch.trim();
+                      const name = newExName.trim();
                       if (!name) return;
-                      handleAddExToSession(name);
+                      setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
                       if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
-                      setExSearch("");
+                      setNewExName("");
+                      setShowAddEx(false);
                     }}
                   >
-                    <Plus size={14} /> Criar
+                    + Criar
                   </button>
                 </div>
               </div>
