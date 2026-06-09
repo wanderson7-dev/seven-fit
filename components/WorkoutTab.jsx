@@ -68,8 +68,7 @@ export default function WorkoutTab({
   const [sessionNotes, setSessionNotes] = useState("");
   const [sessionStarted, setSessionStarted] = useState(false);
 
-  // Qual exercício está com o formulário de série aberto
-  const [expandedEx, setExpandedEx] = useState(null); // índice no sessionExs
+  // (expandedEx removido — formulário sempre visível em cada exercício)
   const [serieType, setSerieType] = useState("valida");
   const [serieWeight, setSerieWeight] = useState("");
   const [serieReps, setSerieReps] = useState("");
@@ -150,8 +149,6 @@ export default function WorkoutTab({
 
   const handleRemoveEx = (exIdx) => {
     setSessionExs((prev) => prev.filter((_, i) => i !== exIdx));
-    if (expandedEx === exIdx) setExpandedEx(null);
-    else if (expandedEx > exIdx) setExpandedEx((p) => p - 1);
   };
 
   const handleAddExToSession = (name) => {
@@ -159,8 +156,6 @@ export default function WorkoutTab({
     setSessionExs((prev) => [...prev, { name, sets: [] }]);
     setShowAddEx(false);
     setExSearch("");
-    // expand o exercício recém adicionado
-    setExpandedEx(sessionExs.length);
   };
 
   const handleSaveWorkout = () => {
@@ -173,7 +168,6 @@ export default function WorkoutTab({
     setSessionExs(activeGroup ? (workoutPlans[activeGroup] || []).map((n) => ({ name: n, sets: [] })) : []);
     setSessionNotes("");
     setSessionStarted(false);
-    setExpandedEx(null);
   };
 
   // ── handlers de plano ────────────────────────────────────────
@@ -246,21 +240,26 @@ export default function WorkoutTab({
 
           {/* Exercise cards — agrupados por músculo */}
           {(() => {
-            // Renderiza um card de exercício
+            // Renderiza um card de exercício — formulário sempre visível, + confirma na hora
             const renderExCard = (ex, exIdx) => {
-              const isOpen = expandedEx === exIdx;
               const prev = getPrevPerf(ex.name);
               const validSets = ex.sets.filter((x) => x.type === "valida");
               const volEx = validSets.reduce((a, x) => a + x.weight * x.reps, 0);
+
               return (
                 <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "16px", overflow: "hidden", marginBottom: "8px" }}>
-                  {/* Header do exercício */}
-                  <div style={{ padding: "12px 14px", borderBottom: (ex.sets.length || isOpen) ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+
+                  {/* Nome + histórico */}
+                  <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                     <div className="row-sb">
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: "700", fontSize: "13px" }}>{ex.name}</div>
-                        {prev && <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.32)", marginTop: "2px" }}>Última: {prev.lastWeight}kg×{prev.lastReps} · Vol: {prev.vol}kg</div>}
-                        {ex.sets.length > 0 && <div style={{ fontSize: "10px", color: "#10b981", marginTop: "2px" }}>{ex.sets.length} série(s) · {validSets.length} válida(s){volEx > 0 ? ` · ${volEx}kg` : ""}</div>}
+                        {prev && <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", marginTop: "1px" }}>Última: {prev.lastWeight}kg×{prev.lastReps} · Vol: {prev.vol}kg</div>}
+                        {ex.sets.length > 0 && (
+                          <div style={{ fontSize: "10px", color: "#10b981", marginTop: "1px" }}>
+                            {ex.sets.length} série(s) · {validSets.length} válida(s){volEx > 0 ? ` · ${volEx}kg` : ""}
+                          </div>
+                        )}
                       </div>
                       <div className="row" style={{ gap: "5px" }}>
                         <button className="btn btn-ghost" style={{ padding: "4px 7px" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)}><History size={12} /></button>
@@ -268,46 +267,49 @@ export default function WorkoutTab({
                       </div>
                     </div>
                   </div>
-                  {/* Séries */}
+
+                  {/* Séries já registradas */}
                   {ex.sets.map((set, sIdx) => {
                     const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
                     return (
-                      <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <div className="row" style={{ gap: "7px" }}>
-                          <span className="tag" style={{ background: ts.color + "25", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>{setTypeIcon(ts.id, 10)} {ts.label}</span>
-                          <span style={{ fontWeight: "700", fontSize: "13px" }}>{set.weight}kg <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: "400" }}>×</span> {set.reps}</span>
+                          <span className="tag" style={{ background: ts.color + "22", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>{setTypeIcon(ts.id, 10)} {ts.label}</span>
+                          <span style={{ fontWeight: "700", fontSize: "13px" }}>{set.weight}kg <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "400" }}>×</span> {set.reps}</span>
                         </div>
                         <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={12} /></button>
                       </div>
                     );
                   })}
-                  {/* Formulário inline */}
-                  {isOpen && (
-                    <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "9px" }}>
-                        {SET_TYPES.map((t) => (
-                          <button key={t.id} onClick={() => setSerieType(t.id)} style={{ padding: "7px 0", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
-                            {setTypeIcon(t.id, 11)} {t.label}
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                        <div>
-                          <div className="label" style={{ marginBottom: "4px" }}>Peso (kg)</div>
-                          <input type="number" placeholder="80" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)} onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()} />
-                        </div>
-                        <div>
-                          <div className="label" style={{ marginBottom: "4px" }}>Repetições</div>
-                          <input id={`reps-${exIdx}`} type="number" placeholder="10" value={serieReps} onChange={(e) => setSerieReps(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)} />
-                        </div>
-                      </div>
-                      <button className="btn btn-primary" style={{ width: "100%", background: s.color }} onClick={() => handleAddSet(exIdx)}>+ Adicionar Série</button>
+
+                  {/* Formulário sempre visível */}
+                  <div style={{ padding: "10px 14px" }}>
+                    {/* Tipo de série — pills horizontais */}
+                    <div style={{ display: "flex", gap: "5px", marginBottom: "9px", flexWrap: "wrap" }}>
+                      {SET_TYPES.map((t) => (
+                        <button key={t.id} onClick={() => setSerieType(t.id)}
+                          style={{ flex: 1, minWidth: "calc(50% - 3px)", padding: "6px 4px", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                            background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
+                          {setTypeIcon(t.id, 11)} {t.label}
+                        </button>
+                      ))}
                     </div>
-                  )}
-                  {/* Toggle */}
-                  <button onClick={() => setExpandedEx(isOpen ? null : exIdx)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "9px 14px", display: "flex", alignItems: "center", gap: "5px", color: isOpen ? "rgba(255,255,255,0.35)" : s.color, fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif" }}>
-                    {isOpen ? <><X size={12} /> Fechar</> : <><Plus size={12} /> Adicionar série</>}
-                  </button>
+                    {/* Peso + Reps + Botão em uma linha */}
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      <input type="number" placeholder="Peso kg" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()}
+                        style={{ flex: 1, textAlign: "center" }} />
+                      <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "700", flexShrink: 0 }}>×</span>
+                      <input id={`reps-${exIdx}`} type="number" placeholder="Reps" value={serieReps} onChange={(e) => setSerieReps(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)}
+                        style={{ flex: 1, textAlign: "center" }} />
+                      <button
+                        onClick={() => handleAddSet(exIdx)}
+                        style={{ flexShrink: 0, width: "42px", height: "42px", borderRadius: "12px", border: "none", cursor: "pointer", background: s.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "20px", fontFamily: "'DM Sans',sans-serif" }}>
+                        <CheckCircle2 size={18} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               );
             };
