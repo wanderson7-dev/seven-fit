@@ -68,7 +68,7 @@ export default function WorkoutTab({
   const [sessionNotes, setSessionNotes] = useState("");
   const [sessionStarted, setSessionStarted] = useState(false);
 
-  // (expandedEx removido — formulário sempre visível em cada exercício)
+  const [expandedEx, setExpandedEx] = useState(null); // índice do card aberto
   const [serieType, setSerieType] = useState("valida");
   const [serieWeight, setSerieWeight] = useState("");
   const [serieReps, setSerieReps] = useState("");
@@ -149,6 +149,8 @@ export default function WorkoutTab({
 
   const handleRemoveEx = (exIdx) => {
     setSessionExs((prev) => prev.filter((_, i) => i !== exIdx));
+    if (expandedEx === exIdx) setExpandedEx(null);
+    else if (expandedEx > exIdx) setExpandedEx((p) => p - 1);
   };
 
   const handleAddExToSession = (name) => {
@@ -168,6 +170,7 @@ export default function WorkoutTab({
     setSessionExs(activeGroup ? (workoutPlans[activeGroup] || []).map((n) => ({ name: n, sets: [] })) : []);
     setSessionNotes("");
     setSessionStarted(false);
+    setExpandedEx(null);
   };
 
   // ── handlers de plano ────────────────────────────────────────
@@ -240,76 +243,80 @@ export default function WorkoutTab({
 
           {/* Exercise cards — agrupados por músculo */}
           {(() => {
-            // Renderiza um card de exercício — formulário sempre visível, + confirma na hora
+            // Card compacto por padrão — toca para expandir e adicionar série
             const renderExCard = (ex, exIdx) => {
+              const isOpen = expandedEx === exIdx;
               const prev = getPrevPerf(ex.name);
               const validSets = ex.sets.filter((x) => x.type === "valida");
               const volEx = validSets.reduce((a, x) => a + x.weight * x.reps, 0);
 
               return (
-                <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "16px", overflow: "hidden", marginBottom: "8px" }}>
+                <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${isOpen ? s.color + "50" : "rgba(255,255,255,0.07)"}`, borderRadius: "16px", overflow: "hidden", marginBottom: "8px", transition: "border-color 0.2s" }}>
 
-                  {/* Nome + histórico */}
-                  <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    <div className="row-sb">
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: "700", fontSize: "13px" }}>{ex.name}</div>
-                        {prev && <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", marginTop: "1px" }}>Última: {prev.lastWeight}kg×{prev.lastReps} · Vol: {prev.vol}kg</div>}
-                        {ex.sets.length > 0 && (
-                          <div style={{ fontSize: "10px", color: "#10b981", marginTop: "1px" }}>
-                            {ex.sets.length} série(s) · {validSets.length} válida(s){volEx > 0 ? ` · ${volEx}kg` : ""}
-                          </div>
-                        )}
+                  {/* Cabeçalho — toca para abrir/fechar */}
+                  <div onClick={() => setExpandedEx(isOpen ? null : exIdx)}
+                    style={{ padding: "12px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: "700", fontSize: "13px" }}>{ex.name}</div>
+                      <div style={{ fontSize: "10px", marginTop: "2px", color: ex.sets.length > 0 ? "#10b981" : "rgba(255,255,255,0.3)" }}>
+                        {ex.sets.length > 0
+                          ? `${ex.sets.length} série(s) · ${validSets.length} válida(s)${volEx > 0 ? ` · ${volEx}kg` : ""}`
+                          : prev ? `Última: ${prev.lastWeight}kg×${prev.lastReps}` : "Sem registro anterior"}
                       </div>
-                      <div className="row" style={{ gap: "5px" }}>
-                        <button className="btn btn-ghost" style={{ padding: "4px 7px" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)}><History size={12} /></button>
-                        <button className="btn-danger" style={{ padding: "4px 7px", display: "flex", alignItems: "center" }} onClick={() => handleRemoveEx(exIdx)}><X size={11} /></button>
-                      </div>
+                    </div>
+                    <div className="row" style={{ gap: "5px" }} onClick={(e) => e.stopPropagation()}>
+                      <button className="btn btn-ghost" style={{ padding: "4px 7px" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)}><History size={12} /></button>
+                      <button className="btn-danger" style={{ padding: "4px 7px", display: "flex", alignItems: "center" }} onClick={() => handleRemoveEx(exIdx)}><X size={11} /></button>
                     </div>
                   </div>
 
                   {/* Séries já registradas */}
-                  {ex.sets.map((set, sIdx) => {
-                    const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                    return (
-                      <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <div className="row" style={{ gap: "7px" }}>
-                          <span className="tag" style={{ background: ts.color + "22", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>{setTypeIcon(ts.id, 10)} {ts.label}</span>
-                          <span style={{ fontWeight: "700", fontSize: "13px" }}>{set.weight}kg <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "400" }}>×</span> {set.reps}</span>
-                        </div>
-                        <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={12} /></button>
-                      </div>
-                    );
-                  })}
+                  {ex.sets.length > 0 && (
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                      {ex.sets.map((set, sIdx) => {
+                        const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                        return (
+                          <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                            <div className="row" style={{ gap: "7px" }}>
+                              <span className="tag" style={{ background: ts.color + "22", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>{setTypeIcon(ts.id, 10)} {ts.label}</span>
+                              <span style={{ fontWeight: "700", fontSize: "13px" }}>{set.weight}kg <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "400" }}>×</span> {set.reps}</span>
+                            </div>
+                            <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={12} /></button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                  {/* Formulário sempre visível */}
-                  <div style={{ padding: "10px 14px" }}>
-                    {/* Tipo de série — pills horizontais */}
-                    <div style={{ display: "flex", gap: "5px", marginBottom: "9px", flexWrap: "wrap" }}>
-                      {SET_TYPES.map((t) => (
-                        <button key={t.id} onClick={() => setSerieType(t.id)}
-                          style={{ flex: 1, minWidth: "calc(50% - 3px)", padding: "6px 4px", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
-                            background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
-                          {setTypeIcon(t.id, 11)} {t.label}
+                  {/* Formulário expansível — aparece ao tocar no card */}
+                  {isOpen && (
+                    <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                      {/* Tipo de série */}
+                      <div style={{ display: "flex", gap: "5px", marginBottom: "9px" }}>
+                        {SET_TYPES.map((t) => (
+                          <button key={t.id} onClick={() => setSerieType(t.id)}
+                            style={{ flex: 1, padding: "6px 2px", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "10px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                              background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
+                            {setTypeIcon(t.id, 11)} {t.label}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Peso × Reps + botão confirmar */}
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <input type="number" placeholder="Peso kg" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()}
+                          style={{ flex: 1, textAlign: "center" }} />
+                        <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "700", flexShrink: 0 }}>×</span>
+                        <input id={`reps-${exIdx}`} type="number" placeholder="Reps" value={serieReps} onChange={(e) => setSerieReps(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)}
+                          style={{ flex: 1, textAlign: "center" }} />
+                        <button onClick={() => handleAddSet(exIdx)}
+                          style={{ flexShrink: 0, width: "42px", height: "42px", borderRadius: "12px", border: "none", cursor: "pointer", background: s.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <CheckCircle2 size={18} />
                         </button>
-                      ))}
+                      </div>
                     </div>
-                    {/* Peso + Reps + Botão em uma linha */}
-                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                      <input type="number" placeholder="Peso kg" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()}
-                        style={{ flex: 1, textAlign: "center" }} />
-                      <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "700", flexShrink: 0 }}>×</span>
-                      <input id={`reps-${exIdx}`} type="number" placeholder="Reps" value={serieReps} onChange={(e) => setSerieReps(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)}
-                        style={{ flex: 1, textAlign: "center" }} />
-                      <button
-                        onClick={() => handleAddSet(exIdx)}
-                        style={{ flexShrink: 0, width: "42px", height: "42px", borderRadius: "12px", border: "none", cursor: "pointer", background: s.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "20px", fontFamily: "'DM Sans',sans-serif" }}>
-                        <CheckCircle2 size={18} />
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             };
