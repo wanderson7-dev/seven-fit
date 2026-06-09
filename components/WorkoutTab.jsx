@@ -386,68 +386,38 @@ export default function WorkoutTab({
             );
           })()}
 
-          {/* Adicionar exercício extra */}
-          {!showAddEx ? (
-            <button onClick={() => setShowAddEx(true)} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: "16px", color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: "12px", fontSize: "13px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "12px" }}>
-              <Plus size={15} /> Adicionar exercício à sessão
+          {/* Adicionar exercício */}
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <input
+              type="text"
+              placeholder="Nome do exercício..."
+              value={newExName}
+              onChange={(e) => setNewExName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const name = newExName.trim();
+                  if (!name) return;
+                  setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
+                  if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
+                  setNewExName("");
+                }
+              }}
+              style={{ flex: 1 }}
+            />
+            <button
+              className="btn btn-primary"
+              style={{ flexShrink: 0, padding: "0 18px", whiteSpace: "nowrap" }}
+              onClick={() => {
+                const name = newExName.trim();
+                if (!name) return;
+                setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
+                if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
+                setNewExName("");
+              }}
+            >
+              + Criar
             </button>
-          ) : (
-            <div className="card" style={{ marginBottom: "12px" }}>
-              <div className="row-sb" style={{ marginBottom: "10px" }}>
-                <span style={{ fontWeight: "700", fontSize: "13px" }}>Adicionar exercício</span>
-                <button style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)" }} onClick={() => { setShowAddEx(false); setExSearch(""); }}><X size={16} /></button>
-              </div>
-              {/* Lista da biblioteca */}
-              <div style={{ maxHeight: "200px", overflowY: "auto", marginBottom: "10px" }}>
-                {(exSearch ? (getExercises(activeGroup) || []).filter((e) => e.toLowerCase().includes(exSearch.toLowerCase())) : (getExercises(activeGroup) || []))
-                  .filter((e) => !sessionExs.some((se) => se.name === e))
-                  .map((e) => (
-                    <div key={e} onClick={() => handleAddExToSession(e)} className="ex-item" style={{ borderRadius: "10px" }}>
-                      <span>{e}</span>
-                      {getPrevPerf(e) && <span style={{ fontSize: "10px", color: "#10b981" }}>✓</span>}
-                    </div>
-                  ))}
-              </div>
-
-              {/* Criar exercício novo */}
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "10px" }}>
-                <div className="label" style={{ marginBottom: "6px" }}>Criar novo exercício</div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <input
-                    type="text"
-                    placeholder="Ex: Crucifixo no cabo..."
-                    value={newExName}
-                    onChange={(e) => setNewExName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const name = newExName.trim();
-                        if (!name) return;
-                        setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
-                        if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
-                        setNewExName("");
-                        setShowAddEx(false);
-                      }
-                    }}
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    className="btn btn-primary"
-                    style={{ flexShrink: 0, padding: "0 16px", whiteSpace: "nowrap" }}
-                    onClick={() => {
-                      const name = newExName.trim();
-                      if (!name) return;
-                      setSessionExs((prev) => prev.some(x => x.name === name) ? prev : [...prev, { name, sets: [] }]);
-                      if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
-                      setNewExName("");
-                      setShowAddEx(false);
-                    }}
-                  >
-                    + Criar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Salvar treino */}
           {hasSets && (
