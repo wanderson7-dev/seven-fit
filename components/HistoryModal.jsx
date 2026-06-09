@@ -10,7 +10,7 @@ export default function HistoryModal({ isOpen, onClose, exerciseName, state, SET
   const getPrevPerf = (name) => {
     const logs = state.workoutLogs || [];
     return logs
-      .filter((w) => w.date < new Date().toISOString().slice(0, 10))
+      .filter((w) => { const d = new Date(); const s = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; return w.date < s; })
       .flatMap((w) =>
         (w.exercises || [])
           .filter((e) => e.name === name)

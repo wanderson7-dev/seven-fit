@@ -95,6 +95,14 @@ export default function Dashboard({
 }) {
   const [weightInput, setWeightInput] = useState("");
 
+  // Helper: data local sem bug de timezone (toISOString usa UTC)
+  const localDateStr = (d = new Date()) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const s = todaySched;
   const t = getTargets();
   const logs = todayFoodLogs();
@@ -154,14 +162,14 @@ export default function Dashboard({
   const bfProg      = bfDiffTotal > 0 ? Math.min((bfLost / bfDiffTotal) * 100, 100).toFixed(0) : 100;
 
   // ── Déficit desta semana (últimos 7 dias) ─────────────────────
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   const hasTrained = (state.workoutLogs || []).some((w) => w.date === todayStr);
 
   // Calorie history for the last 7 days
   const last7 = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const ds  = d.toISOString().slice(0, 10);
+    const ds  = localDateStr(d);
     const k   = allLogs.filter((l) => l.date === ds).reduce((a, l) => a + l.kcal, 0);
     const def = k > 0 ? tdee - k : null; // null = dia sem registro
     return {

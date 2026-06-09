@@ -254,7 +254,13 @@ export default function Home() {
   }, []);
 
   // ── CORE UTILS & HELPERS ───────────────────────────────────────────────────
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const getDOW = () => ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"][new Date().getDay()];
   const fmtDate = (d) => {
     try {

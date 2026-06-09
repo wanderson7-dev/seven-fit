@@ -126,10 +126,16 @@ export default function ProgressTab({
   const totalWorkoutVolume = state.workoutLogs.reduce((a, w) => a + (w.volume || 0), 0);
 
   // --- Weekly Performance Stats (Last 7 Days) ---
+  const localDateStr = (d = new Date()) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   });
 
   // 1. Calorie Deficit
