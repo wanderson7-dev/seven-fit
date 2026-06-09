@@ -315,110 +315,152 @@ export default function DietTab({
             )}
           </div>
 
-          {/* Search panel (aparece quando uma refeição está ativa) */}
+          {/* Painel de adição de alimento (aparece ao clicar "+ Adicionar alimentos") */}
           {activeMeal && (
-            <div style={{
-              background: "rgba(249,115,22,0.06)",
-              border: "1px solid rgba(249,115,22,0.25)",
-              borderRadius: "18px",
-              padding: "14px",
-              marginBottom: "14px",
-            }}>
-              <div className="row-sb" style={{ marginBottom: "10px" }}>
-                <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316" }}>
-                  + {activeMeal}
-                </span>
-                <button
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", padding: "2px" }}
-                  onClick={() => { setActiveMeal(null); setSelectedFood(null); setFoodSearch(""); }}
-                >
+            <div style={{ background: "rgba(12,12,20,0.98)", border: "1px solid rgba(249,115,22,0.25)", borderRadius: "20px", marginBottom: "14px", overflow: "hidden" }}>
+
+              {/* Header */}
+              <div className="row-sb" style={{ padding: "13px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316" }}>+ {activeMeal}</span>
+                <button style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", padding: "2px" }}
+                  onClick={() => { setActiveMeal(null); setSelectedFood(null); setFoodSearch(""); setFoodsTab("meus"); }}>
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Search bar */}
-              {!selectedFood && (
-                <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                  <div style={{ position: "relative", flex: 1 }}>
-                    <Search size={15} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)" }} />
-                    <input
-                      autoFocus
-                      type="text"
-                      placeholder="Buscar alimento..."
-                      value={foodSearch}
-                      onChange={(e) => { setFoodSearch(e.target.value); setSelectedFood(null); }}
-                      style={{ paddingLeft: "34px", fontSize: "13px" }}
-                    />
-                  </div>
-                  <button
-                    className="btn"
-                    style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", padding: "0 12px", height: "42px", display: "flex", alignItems: "center", flexShrink: 0 }}
-                    onClick={openScanner}
-                  >
-                    <Camera size={18} />
-                  </button>
-                </div>
-              )}
-
-              {/* Dropdown */}
-              {foodSearch && !selectedFood && (
-                <div style={{ background: "rgba(14,14,22,0.98)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", marginBottom: "8px", overflow: "hidden" }}>
-                  {filteredFoods.length > 0 && (
-                    <div>
-                      <div className="small" style={{ padding: "7px 14px 3px", background: "rgba(255,255,255,0.02)", textTransform: "uppercase", fontSize: "9px", letterSpacing: "0.5px" }}>Locais</div>
-                      {filteredFoods.map((f) => (
-                        <div key={f.id} className="ex-item" onClick={() => handleSelectFood(f)}>
-                          <span>{f.name}</span>
-                          <span className="small" style={{ flexShrink: 0, marginLeft: "8px" }}>{f.kcal} kcal/{f.unit}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {onlineFoods.length > 0 && (
-                    <div>
-                      <div className="small" style={{ padding: "7px 14px 3px", background: "rgba(255,255,255,0.02)", textTransform: "uppercase", fontSize: "9px", letterSpacing: "0.5px", color: "#f97316", display: "flex", alignItems: "center", gap: "4px" }}>
-                        <Cloud size={9} /> Nuvem
-                      </div>
-                      {onlineFoods.filter((of) => !filteredFoods.some((lf) => lf.name.toLowerCase() === of.name.toLowerCase())).slice(0, 8).map((f) => (
-                        <div key={f.id} className="ex-item" onClick={() => handleSelectFood(f)}>
-                          <span>{f.name}</span>
-                          <span className="small" style={{ flexShrink: 0, marginLeft: "8px" }}>{f.kcal} kcal/{f.unit}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {isSearchingOnline && (
-                    <div style={{ padding: "10px 14px", fontSize: "12px", color: "rgba(255,255,255,0.4)", display: "flex", gap: "8px", alignItems: "center" }}>
-                      <div style={{ width: "10px", height: "10px", border: "2px solid rgba(255,255,255,0.05)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-                      Buscando...
-                    </div>
-                  )}
-                  {filteredFoods.length === 0 && onlineFoods.length === 0 && !isSearchingOnline && (
-                    <div style={{ padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "10px" }}>Nenhum resultado para "{foodSearch}"</div>
-                      <button className="btn" onClick={() => openScanner("label")} style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", color: "#f97316", fontSize: "12px", fontWeight: "700", padding: "7px 14px", borderRadius: "10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                        <Camera size={13} /> Fotografar rótulo
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Selected food confirm */}
-              {selectedFood && (
-                <div>
-                  <div style={{ fontWeight: "600", marginBottom: "4px", fontSize: "14px" }}>{selectedFood.name}</div>
-                  <div style={{ display: "flex", gap: "10px", fontSize: "12px", color: "rgba(255,255,255,0.55)", marginBottom: "10px", flexWrap: "wrap" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><Flame size={11} style={{ color: "#f97316" }} /> {selectedFood.kcal} kcal</span>
-                    <span>P:{selectedFood.protein}g</span>
-                    <span>C:{selectedFood.carbs}g</span>
-                    <span>G:{selectedFood.fat}g</span>
+              {selectedFood ? (
+                <div style={{ padding: "14px 16px" }}>
+                  <div style={{ fontWeight: "700", fontSize: "14px", marginBottom: "4px" }}>{selectedFood.name}</div>
+                  <div style={{ display: "flex", gap: "10px", fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", flexWrap: "wrap" }}>
+                    <span style={{ color: "#f97316" }}><Flame size={11} style={{ display: "inline", verticalAlign: "middle" }} /> {selectedFood.kcal} kcal</span>
+                    <span>C:{selectedFood.carbs}g</span><span>P:{selectedFood.protein}g</span><span>G:{selectedFood.fat}g</span>
                     <span style={{ color: "rgba(255,255,255,0.3)" }}>/{selectedFood.unit}</span>
                   </div>
-                  <div className="row" style={{ gap: "10px" }}>
+                  <div className="row" style={{ gap: "8px" }}>
                     <input type="number" placeholder="gramas" value={foodQty} onChange={(e) => setFoodQty(e.target.value)} style={{ flex: 1 }} />
                     <button className="btn btn-primary" onClick={handleAddLog}>Adicionar</button>
                     <button className="btn btn-ghost" style={{ padding: "10px 12px" }} onClick={() => setSelectedFood(null)}><X size={14} /></button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {/* Inner tabs: Meus Alimentos / Biblioteca */}
+                  <div style={{ display: "flex", gap: "4px", padding: "10px 12px 0", background: "transparent" }}>
+                    {[{ id: "meus", label: "Meus Alimentos" }, { id: "biblioteca", label: "Biblioteca" }].map((t) => (
+                      <button key={t.id} onClick={() => { setFoodsTab(t.id); setFoodSearch(""); setLibSearch(""); }} style={{ flex: 1, padding: "8px 0", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s", background: foodsTab === t.id ? "#f97316" : "rgba(255,255,255,0.06)", color: foodsTab === t.id ? "#fff" : "rgba(255,255,255,0.45)" }}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ padding: "10px 12px 14px" }}>
+
+                    {/* ── Meus Alimentos ── */}
+                    {foodsTab === "meus" && (
+                      <div>
+                        {/* Search local */}
+                        <div style={{ position: "relative", marginBottom: "10px" }}>
+                          <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
+                          <input type="text" placeholder="Filtrar meus alimentos..." value={foodSearch}
+                            onChange={(e) => setFoodSearch(e.target.value)}
+                            style={{ paddingLeft: "32px", fontSize: "13px" }} />
+                        </div>
+
+                        {/* Recently used */}
+                        {!foodSearch && (() => {
+                          const usedNames = [...new Set(state.foodLogs.map(l => l.foodName))];
+                          const recent = usedNames.map(name => allFoods().find(f => f.name === name)).filter(Boolean).slice(0, 5);
+                          return recent.length > 0 ? (
+                            <div style={{ marginBottom: "6px" }}>
+                              <div style={{ fontSize: "9px", fontWeight: "700", color: "rgba(255,255,255,0.3)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                                <History size={10} /> Recentes
+                              </div>
+                              {recent.map((f) => (
+                                <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px", background: "rgba(255,255,255,0.04)" }}>
+                                  <div>
+                                    <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
+                                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
+                                  </div>
+                                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
+                                </div>
+                              ))}
+                              <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
+                            </div>
+                          ) : null;
+                        })()}
+
+                        {/* Full list filtered */}
+                        <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+                          {(foodSearch
+                            ? allFoods().filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase()))
+                            : allFoods()
+                          ).map((f) => (
+                            <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                                  {f.name} {f.scanned && <Camera size={10} style={{ color: "#10b981" }} />}
+                                </div>
+                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
+                              </div>
+                              <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Biblioteca ── */}
+                    {foodsTab === "biblioteca" && (
+                      <div>
+                        <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                          <div style={{ position: "relative", flex: 1 }}>
+                            <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
+                            <input autoFocus type="text" placeholder="Buscar na base de dados..." value={libSearch}
+                              onChange={(e) => setLibSearch(e.target.value)}
+                              style={{ paddingLeft: "32px", fontSize: "13px" }} />
+                          </div>
+                          <button className="btn" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", padding: "0 11px", height: "42px", display: "flex", alignItems: "center", flexShrink: 0 }} onClick={openScanner}>
+                            <Camera size={17} />
+                          </button>
+                        </div>
+
+                        {isLibSearching && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px", color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>
+                            <div style={{ width: "10px", height: "10px", border: "2px solid rgba(255,255,255,0.08)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                            Buscando...
+                          </div>
+                        )}
+
+                        {!libSearch && !isLibSearching && (
+                          <div style={{ textAlign: "center", padding: "24px 12px", color: "rgba(255,255,255,0.22)", fontSize: "12px" }}>
+                            <Cloud size={28} style={{ margin: "0 auto 8px", display: "block", opacity: 0.25 }} />
+                            Digite para buscar na base externa
+                          </div>
+                        )}
+
+                        <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+                          {libFoods.map((f) => (
+                            <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
+                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
+                              </div>
+                              <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {libSearch && !isLibSearching && libFoods.length === 0 && (
+                          <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", marginBottom: "10px" }}>Nenhum resultado para "{libSearch}"</div>
+                            <button className="btn" onClick={() => openScanner("label")} style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", color: "#f97316", fontSize: "11px", fontWeight: "700", padding: "7px 14px", borderRadius: "10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                              <Camera size={12} /> Fotografar rótulo
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
