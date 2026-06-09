@@ -553,10 +553,10 @@ export default function Home() {
       date: workoutSpec.date || today(),
       type: workoutSpec.type,
       exercises: workoutSpec.exercises,
-      notes: workoutSpec.notes,
+      notes: workoutSpec.notes || "",
       volume: workoutSpec.volume,
     };
-    
+
     const updated = {
       ...state,
       workoutLogs: [...state.workoutLogs, newWorkout],
@@ -570,18 +570,48 @@ export default function Home() {
           setState(prev => ({
             ...prev,
             workoutLogs: prev.workoutLogs.map(w => w.id === localId ? {
-              ...w,
-              id: savedWorkout.id,
-              date: savedWorkout.date,
-              type: savedWorkout.type,
-              exercises: savedWorkout.exercises,
-              notes: savedWorkout.notes,
-              volume: Number(savedWorkout.volume)
+              ...w, id: savedWorkout.id, date: savedWorkout.date, type: savedWorkout.type,
+              exercises: savedWorkout.exercises, notes: savedWorkout.notes, volume: Number(savedWorkout.volume)
             } : w)
           }));
+          return savedWorkout.id;
         }
+        return localId;
       } catch (err) {
         console.error("Failed to save workout to cloud:", err);
+        return localId;
+      }
+    }
+    return localId;
+  };
+
+  // Atualiza um treino já salvo (auto-save durante a sessão)
+  const updateSessionWorkout = async (logId, workoutSpec) => {
+    const updatedWorkout = {
+      id: logId,
+      date: workoutSpec.date || today(),
+      type: workoutSpec.type,
+      exercises: workoutSpec.exercises,
+      notes: workoutSpec.notes || "",
+      volume: workoutSpec.volume,
+    };
+
+    setState(prev => ({
+      ...prev,
+      workoutLogs: prev.workoutLogs.map(w => w.id === logId ? updatedWorkout : w),
+    }));
+    // Atualiza localStorage também
+    const newState = {
+      ...state,
+      workoutLogs: state.workoutLogs.map(w => w.id === logId ? updatedWorkout : w),
+    };
+    try { localStorage.setItem("co_workoutLogs", JSON.stringify(newState.workoutLogs)); } catch {}
+
+    if (user) {
+      try {
+        await db.updateWorkoutLog(user.id, logId, updatedWorkout);
+      } catch (err) {
+        console.error("Failed to update workout in cloud:", err);
       }
     }
   };
@@ -1000,6 +1030,7 @@ export default function Home() {
                 <WorkoutTab
                   state={state}
                   saveSessionWorkout={saveSessionWorkout}
+                  updateSessionWorkout={updateSessionWorkout}
                   removeWorkoutLog={removeWorkoutLog}
                   getExercises={getExercises}
                   saveCustomExercise={saveCustomExercise}

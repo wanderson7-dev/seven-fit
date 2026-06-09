@@ -44,6 +44,7 @@ function getMuscle(group, name) {
 export default function WorkoutTab({
   state,
   saveSessionWorkout,
+  updateSessionWorkout,
   removeWorkoutLog,
   getExercises,
   saveCustomExercise,
@@ -67,6 +68,7 @@ export default function WorkoutTab({
   const [sessionExs, setSessionExs] = useState([]); // [{name, sets:[{type,weight,reps}]}]
   const [sessionNotes, setSessionNotes] = useState("");
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [liveLogId, setLiveLogId] = useState(null); // ID do registro ativo no workout_logs
 
   const [expandedEx, setExpandedEx] = useState(null); // índice do card aberto
   const [serieType, setSerieType] = useState("valida");
@@ -123,6 +125,24 @@ export default function WorkoutTab({
     return { lastWeight: mx.weight, lastReps: mx.reps, vol };
   };
 
+  // ── auto-save helper ────────────────────────────────────────
+  const autoSave = async (updatedExs) => {
+    const exsWithSets = updatedExs.filter((ex) => ex.sets.length > 0);
+    if (!exsWithSets.length) return;
+    const volume = exsWithSets.reduce((tot, ex) =>
+      tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
+    const spec = { date: sessionDate, type: s.type, exercises: exsWithSets, notes: sessionNotes, volume };
+
+    if (liveLogId) {
+      // Atualiza o registro existente
+      updateSessionWorkout(liveLogId, spec);
+    } else {
+      // Cria novo e guarda o ID
+      const newId = await saveSessionWorkout(spec);
+      if (newId) setLiveLogId(newId);
+    }
+  };
+
   // ── handlers de séries ───────────────────────────────────────
   const handleAddSet = (exIdx) => {
     const w = parseFloat(serieWeight);
@@ -133,6 +153,7 @@ export default function WorkoutTab({
       const updated = prev.map((ex, i) =>
         i === exIdx ? { ...ex, sets: [...ex.sets, { type: serieType, weight: w, reps: r }] } : ex
       );
+      autoSave(updated); // ← salva automaticamente
       return updated;
     });
     setSerieWeight("");
@@ -160,16 +181,12 @@ export default function WorkoutTab({
     setExSearch("");
   };
 
-  const handleSaveWorkout = () => {
-    const finalExs = sessionExs.filter((ex) => ex.sets.length > 0);
-    if (!finalExs.length) return;
-    const volume = finalExs.reduce((tot, ex) => {
-      return tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0);
-    }, 0);
-    saveSessionWorkout({ date: sessionDate, type: s.type, exercises: finalExs, notes: sessionNotes, volume });
+  // Reseta a sessão para um novo treino
+  const resetSession = () => {
     setSessionExs(activeGroup ? (workoutPlans[activeGroup] || []).map((n) => ({ name: n, sets: [] })) : []);
     setSessionNotes("");
     setSessionStarted(false);
+    setLiveLogId(null);
     setExpandedEx(null);
   };
 
@@ -398,12 +415,14 @@ export default function WorkoutTab({
             </div>
           )}
 
-          {/* Notes + Save */}
+          {/* Indicador de auto-save + botão Novo Treino */}
           {hasSets && (
-            <div className="card">
-              <textarea placeholder="Observações do treino..." value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} style={{ height: "56px", marginBottom: "10px" }} />
-              <button className="btn btn-primary" style={{ width: "100%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={handleSaveWorkout}>
-                <Save size={15} /> Salvar Treino
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <div style={{ flex: 1, fontSize: "11px", color: "#10b981", display: "flex", alignItems: "center", gap: "5px" }}>
+                <CheckCircle2 size={13} /> Séries salvas automaticamente
+              </div>
+              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "8px 14px", flexShrink: 0 }} onClick={resetSession}>
+                Novo treino
               </button>
             </div>
           )}
