@@ -226,18 +226,18 @@ export default function WorkoutTab({
       {activeSubTab === "session" && (
         <div>
           {/* Session Date Picker */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", minWidth: 0 }}>
             <input
               type="date"
               value={sessionDate}
               max={today()}
               onChange={(e) => setSessionDate(e.target.value || today())}
-              style={{ flex: 1, fontWeight: "600", fontSize: "13px" }}
+              style={{ fontWeight: "600", fontSize: "13px", minWidth: 0, flex: 1, width: "100%" }}
             />
             {sessionDate !== today() && (
               <button
                 className="btn btn-ghost"
-                style={{ padding: "10px 14px", fontSize: "12px", flexShrink: 0 }}
+                style={{ padding: "10px 12px", fontSize: "12px", flexShrink: 0, whiteSpace: "nowrap" }}
                 onClick={() => setSessionDate(today())}
               >
                 Hoje

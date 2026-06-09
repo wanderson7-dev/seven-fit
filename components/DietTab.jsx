@@ -255,20 +255,18 @@ export default function DietTab({
       {activeSubTab === "log" && (
         <div>
           {/* Date Picker */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-            <div style={{ flex: 1, position: "relative" }}>
-              <input
-                type="date"
-                value={logDate}
-                max={today()}
-                onChange={(e) => setLogDate(e.target.value || today())}
-                style={{ paddingLeft: "14px", fontWeight: "600", fontSize: "13px" }}
-              />
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", minWidth: 0 }}>
+            <input
+              type="date"
+              value={logDate}
+              max={today()}
+              onChange={(e) => setLogDate(e.target.value || today())}
+              style={{ fontWeight: "600", fontSize: "13px", minWidth: 0, flex: 1, width: "100%" }}
+            />
             {logDate !== today() && (
               <button
                 className="btn btn-ghost"
-                style={{ padding: "10px 14px", fontSize: "12px", flexShrink: 0 }}
+                style={{ padding: "10px 12px", fontSize: "12px", flexShrink: 0, whiteSpace: "nowrap" }}
                 onClick={() => setLogDate(today())}
               >
                 Hoje
