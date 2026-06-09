@@ -411,10 +411,10 @@ export default function WorkoutTab({
               {/* Criar exercício novo — sempre visível */}
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "10px" }}>
                 <div className="label" style={{ marginBottom: "6px" }}>Criar exercício novo</div>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
                   <input
                     type="text"
-                    placeholder="Nome do exercício..."
+                    placeholder="Ex: Crucifixo no cabo..."
                     value={exSearch}
                     onChange={(e) => setExSearch(e.target.value)}
                     onKeyDown={(e) => {
@@ -422,21 +422,23 @@ export default function WorkoutTab({
                         const name = exSearch.trim();
                         handleAddExToSession(name);
                         if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
+                        setExSearch("");
                       }
                     }}
                     style={{ flex: 1 }}
                   />
                   <button
                     className="btn btn-primary"
-                    style={{ flexShrink: 0, padding: "0 14px" }}
+                    style={{ flexShrink: 0, height: "auto", padding: "0 16px", display: "flex", alignItems: "center", gap: "5px" }}
                     onClick={() => {
                       const name = exSearch.trim();
                       if (!name) return;
                       handleAddExToSession(name);
                       if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
+                      setExSearch("");
                     }}
                   >
-                    <Plus size={15} />
+                    <Plus size={14} /> Criar
                   </button>
                 </div>
               </div>
