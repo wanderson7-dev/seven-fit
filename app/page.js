@@ -129,6 +129,7 @@ export default function Home() {
     weightLogs: [],
     customFoods: [],
     customExercises: {},
+    customMuscleMap: {}, // { [exerciseName]: muscle } para exercícios criados pelo usuário
     workoutPlans: DEFAULT_WORKOUT_PLANS,
     schedule: DEFAULT_SCHEDULE,
     progressPhotos: [],
@@ -165,12 +166,14 @@ export default function Home() {
       const parsedMealPlan = mealPlan ? JSON.parse(mealPlan) : null;
 
       const workoutPlansRaw = localStorage.getItem("co_workoutPlans");
+      const customMuscleMapRaw = localStorage.getItem("co_customMuscleMap");
       return {
         foodLogs: foodLogs ? JSON.parse(foodLogs) : [],
         workoutLogs: workoutLogs ? JSON.parse(workoutLogs) : [],
         weightLogs: weightLogs ? JSON.parse(weightLogs) : [],
         customFoods: customFoods ? JSON.parse(customFoods) : [],
         customExercises: customExercises ? JSON.parse(customExercises) : {},
+        customMuscleMap: customMuscleMapRaw ? JSON.parse(customMuscleMapRaw) : {},
         workoutPlans: workoutPlansRaw ? JSON.parse(workoutPlansRaw) : DEFAULT_WORKOUT_PLANS,
         schedule: (parsedSchedule && parsedSchedule.length === 7) ? parsedSchedule : DEFAULT_SCHEDULE,
         progressPhotos: progressPhotos ? JSON.parse(progressPhotos) : [],
@@ -191,6 +194,7 @@ export default function Home() {
       localStorage.setItem("co_weightLogs", JSON.stringify(data.weightLogs || []));
       localStorage.setItem("co_customFoods", JSON.stringify(data.customFoods || []));
       localStorage.setItem("co_customExercises", JSON.stringify(data.customExercises || {}));
+      localStorage.setItem("co_customMuscleMap", JSON.stringify(data.customMuscleMap || {}));
       localStorage.setItem("co_workoutPlans", JSON.stringify(data.workoutPlans || DEFAULT_WORKOUT_PLANS));
       localStorage.setItem("co_schedule", JSON.stringify(data.schedule || DEFAULT_SCHEDULE));
       localStorage.setItem("co_progressPhotos", JSON.stringify(data.progressPhotos || []));
@@ -1043,6 +1047,8 @@ export default function Home() {
                   workoutPlans={state.workoutPlans || DEFAULT_WORKOUT_PLANS}
                   saveWorkoutPlan={saveWorkoutPlan}
                   DEFAULT_EXERCISES={DEFAULT_EXERCISES}
+                  customMuscleMap={state.customMuscleMap || {}}
+                  saveCustomMuscleMap={(map) => { const u = { ...state, customMuscleMap: map }; saveState(u); }}
                   SET_TYPES={SET_TYPES}
                   today={today}
                   fmtDate={fmtDate}

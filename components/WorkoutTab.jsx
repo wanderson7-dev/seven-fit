@@ -33,7 +33,9 @@ const MUSCLE_SUBGROUPS = {
 };
 
 // Retorna o sub-músculo de um exercício dentro de um grupo
-function getMuscle(group, name) {
+// customMap é passado em runtime para exercícios criados pelo usuário
+function getMuscle(group, name, customMap = {}) {
+  if (customMap[name]) return customMap[name];
   const subs = MUSCLE_SUBGROUPS[group] || {};
   for (const [muscle, list] of Object.entries(subs)) {
     if (list.includes(name)) return muscle;
@@ -50,6 +52,8 @@ export default function WorkoutTab({
   workoutPlans,
   saveWorkoutPlan,
   DEFAULT_EXERCISES,
+  customMuscleMap = {},
+  saveCustomMuscleMap,
   SET_TYPES,
   today,
   fmtDate,
@@ -78,6 +82,7 @@ export default function WorkoutTab({
   const [exSearch, setExSearch] = useState("");
   const [newExName, setNewExName] = useState("");
   const [newExGroup, setNewExGroup] = useState(null);
+  const [newExMuscle, setNewExMuscle] = useState(null);
 
   // Plano sub-tab
   const [planGroup, setPlanGroup] = useState("Push");
@@ -354,7 +359,7 @@ export default function WorkoutTab({
             return (
               <>
                 {muscleOrder.map((muscle) => {
-                  const inGroup = sessionExs.filter((ex) => getMuscle(activeGroup, ex.name) === muscle);
+                  const inGroup = sessionExs.filter((ex) => getMuscle(activeGroup, ex.name, customMuscleMap) === muscle);
                   if (!inGroup.length) return null;
                   return (
                     <div key={muscle} style={{ marginBottom: "14px" }}>
@@ -536,29 +541,51 @@ export default function WorkoutTab({
                     placeholder="Nome do exercício..."
                     value={newExName}
                     onChange={(e) => setNewExName(e.target.value)}
-                    style={{ marginBottom: "8px" }}
+                    style={{ marginBottom: "10px" }}
                   />
-                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+
+                  <div className="label" style={{ marginBottom: "6px" }}>Grupamento</div>
+                  <div style={{ display: "flex", gap: "5px", flexWrap: "wrap", marginBottom: "10px" }}>
                     {ALL_GROUPS.map((g) => (
-                      <button key={g} onClick={() => setNewExGroup(g)}
-                        style={{ padding: "6px 14px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                      <button key={g} onClick={() => { setNewExGroup(g); setNewExMuscle(null); }}
+                        style={{ padding: "6px 12px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
                           background: newExGroup === g ? "#f97316" : "rgba(255,255,255,0.07)", color: newExGroup === g ? "#fff" : "rgba(255,255,255,0.5)" }}>
                         {g}
                       </button>
                     ))}
                   </div>
+
+                  {/* Sub-músculo — aparece quando grupo é selecionado */}
+                  {newExGroup && (
+                    <>
+                      <div className="label" style={{ marginBottom: "6px" }}>Músculo</div>
+                      <div style={{ display: "flex", gap: "5px", flexWrap: "wrap", marginBottom: "12px" }}>
+                        {Object.keys(MUSCLE_SUBGROUPS[newExGroup] || {}).map((m) => (
+                          <button key={m} onClick={() => setNewExMuscle(m)}
+                            style={{ padding: "6px 12px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                              background: newExMuscle === m ? "#3b82f6" : "rgba(255,255,255,0.07)", color: newExMuscle === m ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
                   <button
                     className="btn btn-primary"
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", opacity: (!newExName.trim() || !newExGroup || !newExMuscle) ? 0.5 : 1 }}
                     onClick={() => {
                       const name = newExName.trim();
-                      if (!name || !newExGroup) return;
+                      if (!name || !newExGroup || !newExMuscle) return;
                       if (saveCustomExercise) saveCustomExercise(newExGroup, name);
-                      // Adiciona ao plano do grupo escolhido
+                      // Salva o mapeamento músculo para este exercício
+                      if (saveCustomMuscleMap) saveCustomMuscleMap({ ...customMuscleMap, [name]: newExMuscle });
+                      // Adiciona ao plano do grupo
                       const currentPlan = (workoutPlans && workoutPlans[newExGroup]) || [];
                       if (!currentPlan.includes(name)) saveWorkoutPlan(newExGroup, [...currentPlan, name]);
                       setNewExName("");
                       setNewExGroup(null);
+                      setNewExMuscle(null);
                     }}
                   >
                     + Criar exercício
