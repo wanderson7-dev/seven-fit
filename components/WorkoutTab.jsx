@@ -3,6 +3,44 @@
 import React, { useState, useEffect } from "react";
 import { Flame, CheckCircle2, BookOpen, History, X, Plus, Save, Zap, Droplets, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
+// Sub-grupamentos musculares por tipo de treino
+const MUSCLE_SUBGROUPS = {
+  Push: {
+    "Peito":   ["Supino Reto","Supino Inclinado","Supino Declinado","Crucifixo","Crucifixo Inclinado","Pec Deck","Crossover"],
+    "Ombro":   ["Desenvolvimento com Barra","Desenvolvimento com Halteres","Elevação Lateral","Elevação Frontal","Encolhimento","Face Pull"],
+    "Tríceps": ["Tríceps Corda","Tríceps Testa","Tríceps Francês","Tríceps Banco","Mergulho","Extensão Tríceps"],
+  },
+  Pull: {
+    "Costas":  ["Puxada Frente","Puxada Neutra","Puxada Fechada","Barra Fixa","Pullover","Remada Curvada","Remada Unilateral","Remada Cavalinho","Remada Sentado","Serrote"],
+    "Bíceps":  ["Rosca Direta","Rosca Martelo","Rosca Concentrada","Rosca 21","Rosca Inversa","Rosca Scott"],
+  },
+  Legs: {
+    "Quadríceps": ["Agachamento Livre","Agachamento Smith","Agachamento Sumô","Leg Press","Hack Squat","Cadeira Extensora","Avanço","Avanço com Barra","Agachamento Búlgaro"],
+    "Posterior":  ["Stiff","Mesa Flexora"],
+    "Adutores":   ["Cadeira Adutora","Cadeira Abdutora"],
+    "Panturrilha":["Panturrilha em Pé","Panturrilha Sentado","Panturrilha no Leg Press"],
+  },
+  Upper: {
+    "Peito":   ["Supino Reto","Supino Inclinado","Crucifixo","Pec Deck"],
+    "Ombro":   ["Desenvolvimento com Halteres","Elevação Lateral","Face Pull"],
+    "Tríceps": ["Tríceps Corda","Tríceps Testa"],
+    "Costas":  ["Puxada Frente","Remada Curvada","Remada Unilateral","Pullover"],
+  },
+  Lower: {
+    "Pernas":  ["Agachamento Livre","Leg Press","Cadeira Extensora","Mesa Flexora","Stiff","Avanço","Panturrilha em Pé","Panturrilha Sentado"],
+    "Bíceps":  ["Rosca Direta","Rosca Martelo","Rosca Concentrada"],
+  },
+};
+
+// Retorna o sub-músculo de um exercício dentro de um grupo
+function getMuscle(group, name) {
+  const subs = MUSCLE_SUBGROUPS[group] || {};
+  for (const [muscle, list] of Object.entries(subs)) {
+    if (list.includes(name)) return muscle;
+  }
+  return "Outros";
+}
+
 export default function WorkoutTab({
   state,
   saveSessionWorkout,
@@ -206,98 +244,116 @@ export default function WorkoutTab({
             ))}
           </div>
 
-          {/* Exercise cards */}
-          {sessionExs.map((ex, exIdx) => {
-            const isOpen = expandedEx === exIdx;
-            const prev = getPrevPerf(ex.name);
-            const validSets = ex.sets.filter((x) => x.type === "valida");
-            const volEx = validSets.reduce((a, x) => a + x.weight * x.reps, 0);
-
-            return (
-              <div key={exIdx} className="card" style={{ padding: "0", overflow: "hidden", marginBottom: "10px" }}>
-                {/* Exercise header */}
-                <div style={{ padding: "13px 16px", borderBottom: (ex.sets.length || isOpen) ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                  <div className="row-sb">
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: "700", fontSize: "14px" }}>{ex.name}</div>
-                      {prev && (
-                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
-                          Última: {prev.lastWeight}kg×{prev.lastReps} · Vol: {prev.vol}kg
-                        </div>
-                      )}
-                      {ex.sets.length > 0 && (
-                        <div style={{ fontSize: "11px", color: "#10b981", marginTop: "2px" }}>
-                          {ex.sets.length} série(s) · {validSets.length} válida(s){volEx > 0 ? ` · ${volEx}kg` : ""}
-                        </div>
-                      )}
-                    </div>
-                    <div className="row" style={{ gap: "6px" }}>
-                      <button className="btn btn-ghost" style={{ padding: "5px 8px" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)}>
-                        <History size={13} />
-                      </button>
-                      <button className="btn-danger" style={{ padding: "5px 8px", display: "flex", alignItems: "center" }} onClick={() => handleRemoveEx(exIdx)}>
-                        <X size={12} />
-                      </button>
+          {/* Exercise cards — agrupados por músculo */}
+          {(() => {
+            // Renderiza um card de exercício
+            const renderExCard = (ex, exIdx) => {
+              const isOpen = expandedEx === exIdx;
+              const prev = getPrevPerf(ex.name);
+              const validSets = ex.sets.filter((x) => x.type === "valida");
+              const volEx = validSets.reduce((a, x) => a + x.weight * x.reps, 0);
+              return (
+                <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "16px", overflow: "hidden", marginBottom: "8px" }}>
+                  {/* Header do exercício */}
+                  <div style={{ padding: "12px 14px", borderBottom: (ex.sets.length || isOpen) ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                    <div className="row-sb">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: "700", fontSize: "13px" }}>{ex.name}</div>
+                        {prev && <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.32)", marginTop: "2px" }}>Última: {prev.lastWeight}kg×{prev.lastReps} · Vol: {prev.vol}kg</div>}
+                        {ex.sets.length > 0 && <div style={{ fontSize: "10px", color: "#10b981", marginTop: "2px" }}>{ex.sets.length} série(s) · {validSets.length} válida(s){volEx > 0 ? ` · ${volEx}kg` : ""}</div>}
+                      </div>
+                      <div className="row" style={{ gap: "5px" }}>
+                        <button className="btn btn-ghost" style={{ padding: "4px 7px" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)}><History size={12} /></button>
+                        <button className="btn-danger" style={{ padding: "4px 7px", display: "flex", alignItems: "center" }} onClick={() => handleRemoveEx(exIdx)}><X size={11} /></button>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Séries já adicionadas */}
-                {ex.sets.map((set, sIdx) => {
-                  const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                  return (
-                    <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: sIdx % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent" }}>
-                      <div className="row" style={{ gap: "8px" }}>
-                        <span className="tag" style={{ background: ts.color + "28", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>
-                          {setTypeIcon(ts.id, 10)} {ts.label}
-                        </span>
-                        <span style={{ fontWeight: "700", fontSize: "14px" }}>{set.weight}kg <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: "400" }}>×</span> {set.reps}</span>
+                  {/* Séries */}
+                  {ex.sets.map((set, sIdx) => {
+                    const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                    return (
+                      <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="row" style={{ gap: "7px" }}>
+                          <span className="tag" style={{ background: ts.color + "25", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>{setTypeIcon(ts.id, 10)} {ts.label}</span>
+                          <span style={{ fontWeight: "700", fontSize: "13px" }}>{set.weight}kg <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: "400" }}>×</span> {set.reps}</span>
+                        </div>
+                        <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={12} /></button>
                       </div>
-                      <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}>
-                        <X size={13} />
-                      </button>
+                    );
+                  })}
+                  {/* Formulário inline */}
+                  {isOpen && (
+                    <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "9px" }}>
+                        {SET_TYPES.map((t) => (
+                          <button key={t.id} onClick={() => setSerieType(t.id)} style={{ padding: "7px 0", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                            {setTypeIcon(t.id, 11)} {t.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                        <div>
+                          <div className="label" style={{ marginBottom: "4px" }}>Peso (kg)</div>
+                          <input type="number" placeholder="80" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)} onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()} />
+                        </div>
+                        <div>
+                          <div className="label" style={{ marginBottom: "4px" }}>Repetições</div>
+                          <input id={`reps-${exIdx}`} type="number" placeholder="10" value={serieReps} onChange={(e) => setSerieReps(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)} />
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" style={{ width: "100%", background: s.color }} onClick={() => handleAddSet(exIdx)}>+ Adicionar Série</button>
+                    </div>
+                  )}
+                  {/* Toggle */}
+                  <button onClick={() => setExpandedEx(isOpen ? null : exIdx)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "9px 14px", display: "flex", alignItems: "center", gap: "5px", color: isOpen ? "rgba(255,255,255,0.35)" : s.color, fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif" }}>
+                    {isOpen ? <><X size={12} /> Fechar</> : <><Plus size={12} /> Adicionar série</>}
+                  </button>
+                </div>
+              );
+            };
+
+            if (!activeGroup || sessionExs.length === 0) return null;
+
+            // Monta grupos musculares na ordem
+            const muscleOrder = Object.keys(MUSCLE_SUBGROUPS[activeGroup] || {});
+            // Exercícios que não pertencem a nenhum músculo → "Outros"
+            const allRendered = new Set();
+
+            return (
+              <>
+                {muscleOrder.map((muscle) => {
+                  const inGroup = sessionExs.filter((ex) => getMuscle(activeGroup, ex.name) === muscle);
+                  if (!inGroup.length) return null;
+                  return (
+                    <div key={muscle} style={{ marginBottom: "14px" }}>
+                      {/* Header do músculo */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ height: "1px", flex: 1, background: `${s.color}40` }} />
+                        <span style={{ fontSize: "11px", fontWeight: "800", color: s.color, textTransform: "uppercase", letterSpacing: "0.8px", whiteSpace: "nowrap" }}>{muscle}</span>
+                        <div style={{ height: "1px", flex: 1, background: `${s.color}40` }} />
+                      </div>
+                      {inGroup.map((ex) => {
+                        const exIdx = sessionExs.indexOf(ex);
+                        allRendered.add(exIdx);
+                        return renderExCard(ex, exIdx);
+                      })}
                     </div>
                   );
                 })}
-
-                {/* Formulário de série (inline) */}
-                {isOpen && (
-                  <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    {/* Tipos de série */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "10px" }}>
-                      {SET_TYPES.map((t) => (
-                        <button key={t.id} onClick={() => setSerieType(t.id)} style={{ padding: "7px 0", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.45)", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
-                          {setTypeIcon(t.id, 12)} {t.label}
-                        </button>
-                      ))}
+                {/* Outros (exercícios customizados não mapeados) */}
+                {sessionExs.some((ex, i) => !allRendered.has(i)) && (
+                  <div style={{ marginBottom: "14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                      <div style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }} />
+                      <span style={{ fontSize: "11px", fontWeight: "800", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.8px" }}>Outros</span>
+                      <div style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }} />
                     </div>
-                    {/* Peso e reps */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                      <div>
-                        <div className="label" style={{ marginBottom: "4px" }}>Peso (kg)</div>
-                        <input type="number" placeholder="80" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()} />
-                      </div>
-                      <div>
-                        <div className="label" style={{ marginBottom: "4px" }}>Repetições</div>
-                        <input id={`reps-${exIdx}`} type="number" placeholder="10" value={serieReps} onChange={(e) => setSerieReps(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)} />
-                      </div>
-                    </div>
-                    <button className="btn btn-primary" style={{ width: "100%", background: s.color }} onClick={() => handleAddSet(exIdx)}>
-                      + Adicionar Série
-                    </button>
+                    {sessionExs.map((ex, exIdx) => !allRendered.has(exIdx) ? renderExCard(ex, exIdx) : null)}
                   </div>
                 )}
-
-                {/* Toggle adicionar série */}
-                <button onClick={() => setExpandedEx(isOpen ? null : exIdx)}
-                  style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "10px 16px", display: "flex", alignItems: "center", gap: "6px", color: isOpen ? "rgba(255,255,255,0.4)" : s.color, fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif" }}>
-                  {isOpen ? <><X size={13} /> Fechar</> : <><Plus size={13} /> Adicionar série</>}
-                </button>
-              </div>
+              </>
             );
-          })}
+          })()}
 
           {/* Adicionar exercício extra */}
           {!showAddEx ? (
@@ -422,23 +478,47 @@ export default function WorkoutTab({
             </button>
             {showLibrary && (
               <div style={{ padding: "0 16px 16px" }}>
-                <div style={{ position: "relative", marginBottom: "10px" }}>
+                <div style={{ position: "relative", marginBottom: "12px" }}>
                   <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
                   <input type="text" placeholder="Filtrar exercícios..." value={planSearch} onChange={(e) => setPlanSearch(e.target.value)} style={{ paddingLeft: "32px" }} />
                 </div>
-                <div style={{ maxHeight: "260px", overflowY: "auto" }}>
-                  {(planSearch ? filteredLib : allForGroup).map((name) => {
-                    const inPlan = planExercises.includes(name);
-                    return (
-                      <div key={name} onClick={() => !inPlan && addToPlan(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: inPlan ? "default" : "pointer", marginBottom: "2px", background: inPlan ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)", opacity: inPlan ? 0.6 : 1 }}>
-                        <span style={{ fontSize: "13px" }}>{name}</span>
-                        {inPlan
-                          ? <CheckCircle2 size={14} style={{ color: "#10b981" }} />
-                          : <Plus size={14} style={{ color: "#f97316" }} />}
-                      </div>
-                    );
-                  })}
+
+                {/* Biblioteca agrupada por músculo */}
+                <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+                  {planSearch ? (
+                    // Busca flat quando há filtro
+                    filteredLib.map((name) => {
+                      const inPlan = planExercises.includes(name);
+                      return (
+                        <div key={name} onClick={() => !inPlan && addToPlan(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: inPlan ? "default" : "pointer", marginBottom: "2px", background: inPlan ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)", opacity: inPlan ? 0.6 : 1 }}>
+                          <span style={{ fontSize: "13px" }}>{name}</span>
+                          {inPlan ? <CheckCircle2 size={13} style={{ color: "#10b981" }} /> : <Plus size={13} style={{ color: "#f97316" }} />}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    // Agrupado por músculo quando sem filtro
+                    Object.entries(MUSCLE_SUBGROUPS[planGroup] || {}).map(([muscle, musclExs]) => {
+                      const available = allForGroup.filter((e) => musclExs.includes(e));
+                      if (!available.length) return null;
+                      return (
+                        <div key={muscle} style={{ marginBottom: "12px" }}>
+                          <div style={{ fontSize: "10px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px", paddingLeft: "2px" }}>{muscle}</div>
+                          {available.map((name) => {
+                            const inPlan = planExercises.includes(name);
+                            return (
+                              <div key={name} onClick={() => !inPlan && addToPlan(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: inPlan ? "default" : "pointer", marginBottom: "2px", background: inPlan ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)", opacity: inPlan ? 0.6 : 1 }}>
+                                <span style={{ fontSize: "13px" }}>{name}</span>
+                                {inPlan ? <CheckCircle2 size={13} style={{ color: "#10b981" }} /> : <Plus size={13} style={{ color: "#f97316" }} />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
+
                 {/* Criar exercício custom */}
                 {planSearch && !allForGroup.some((e) => e.toLowerCase() === planSearch.toLowerCase()) && (
                   <div onClick={() => { addToPlan(planSearch); if (saveCustomExercise) saveCustomExercise(planGroup, planSearch); setPlanSearch(""); }}
