@@ -38,17 +38,49 @@ export default function ProgressTab({
   const [viewPhotoId, setViewPhotoId] = useState(null);
 
   const wl = state.weightLogs || [];
-  const lastW = wl.length ? wl[wl.length - 1].value : PROFILE.weight;
-  const firstW = wl.length ? wl[0].value : PROFILE.weight;
-  const lost = Math.max(0, firstW - lastW).toFixed(1);
-  const weeks = Math.max(1, Math.ceil(wl.length / 7));
-  const bfNow = Math.max(10, PROFILE.current_bf - lost * 0.15).toFixed(1);
-  const kgToGoal = Math.max(
-    0,
-    parseFloat(lastW) * (parseFloat(bfNow) / 100) - parseFloat(lastW) * (PROFILE.goal_bf / 100)
-  ).toFixed(1);
-  
-  const weeklyLossRate = parseFloat(lost) / weeks;
+
+  // Peso atual = último log; peso inicial = SEMPRE o do perfil
+  const lastW  = wl.length ? wl[wl.length - 1].value : PROFILE.weight;
+  const firstW = PROFILE.weight;
+  const lost   = Math.max(0, firstW - lastW);
+
+  // Semanas reais desde o primeiro log de peso
+  const weeks = (() => {
+    if (!wl.length) return 1;
+    const d0 = new Date(wl[0].date + "T12:00:00");
+    const diffDays = Math.max(1, Math.round((new Date() - d0) / 86400000));
+    return Math.max(1, Math.ceil(diffDays / 7));
+  })();
+
+  // TDEE via Mifflin-St Jeor (igual ao Dashboard e page.js)
+  const tmbPT = PROFILE.gender === "female"
+    ? (10 * firstW + 6.25 * (PROFILE.height || 176) - 5 * (PROFILE.age || 30) - 161)
+    : (10 * firstW + 6.25 * (PROFILE.height || 176) - 5 * (PROFILE.age || 30) + 5);
+  const tdeePT = Math.round(tmbPT * (parseFloat(PROFILE.activityFactor) || 1.725));
+
+  // Déficit calórico acumulado dos food logs → gordura perdida (7.700 kcal = 1kg)
+  const allLogs = state.foodLogs || [];
+  const loggedDates = [...new Set(allLogs.map(l => l.date))];
+  const cumDeficit = loggedDates.reduce((acc, date) => {
+    const dayKcal = allLogs.filter(l => l.date === date).reduce((a, l) => a + l.kcal, 0);
+    return acc + (tdeePT - dayKcal);
+  }, 0);
+
+  // BF estimado: combina déficit calórico + variação de peso (mesmo método do Dashboard)
+  const fatKgByDeficit = cumDeficit / 7700;
+  const fatKgByScale   = lost * 0.72;
+  const hasWeightHistory = wl.length >= 2;
+  const fatKgLost = loggedDates.length > 0 && hasWeightHistory
+    ? (fatKgByDeficit * 0.6 + fatKgByScale * 0.4)
+    : loggedDates.length > 0 ? fatKgByDeficit : fatKgByScale;
+
+  const initialFatKg = firstW * (PROFILE.current_bf / 100);
+  const currentFatKg = Math.max(0, initialFatKg - Math.max(0, fatKgLost));
+  const bfNow = Math.max(PROFILE.goal_bf, (currentFatKg / lastW) * 100).toFixed(1);
+
+  // Kg de gordura restante até a meta e previsão de semanas
+  const kgToGoal = Math.max(0, currentFatKg - lastW * (PROFILE.goal_bf / 100)).toFixed(1);
+  const weeklyLossRate = lost / Math.max(1, weeks);
   const weeksLeft = weeklyLossRate > 0.05 ? Math.ceil(parseFloat(kgToGoal) / weeklyLossRate) : "∞";
 
   const handlePhotoUpload = (angle, e) => {
@@ -192,7 +224,7 @@ export default function ProgressTab({
              <StatCard
                icon={TrendingDown}
                label="Perdido"
-               value={`${lost} kg`}
+               value={`${lost.toFixed(1)} kg`}
                sub={`${weeklyLossRate.toFixed(2)}kg/sem`}
                color="#10b981"
              />
