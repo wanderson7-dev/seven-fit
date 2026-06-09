@@ -294,7 +294,6 @@ export default function WorkoutTab({
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                       {ex.sets.map((set, sIdx) => {
                         const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                        const setVol = set.weight * set.reps;
                         return (
                           <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                             <div className="row" style={{ gap: "7px" }}>
@@ -302,7 +301,6 @@ export default function WorkoutTab({
                               <span style={{ fontWeight: "700", fontSize: "13px" }}>
                                 {set.weight}kg <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "400" }}>×</span> {set.reps}
                               </span>
-                              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>= {setVol}kg</span>
                             </div>
                             <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={12} /></button>
                           </div>
@@ -461,7 +459,6 @@ export default function WorkoutTab({
                                 {setTypeIcon(ts.id, 11)} {ts.label}
                               </span>
                               <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
-                              <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>= {set.weight * set.reps}kg</span>
                             </div>
                           );
                         })}
