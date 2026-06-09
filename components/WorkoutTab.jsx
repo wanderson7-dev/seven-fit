@@ -24,9 +24,9 @@ export default function WorkoutTab({
   const [currentSets, setCurrentSets] = useState([]);
   const [sessionExs, setSessionExs] = useState([]);
   const [sessionNotes, setSessionNotes] = useState("");
-  const [setType, setSetType] = useState("valida");
-  const [setWeight, setSetWeight] = useState("");
-  const [setReps, setSetReps] = useState("");
+  const [serieType, setSerieType] = useState("valida");
+  const [serieWeight, setSerieWeight] = useState("");
+  const [serieReps, setSerieReps] = useState("");
 
   const [showExPicker, setShowExPicker] = useState(false);
   const [customExName, setCustomExName] = useState("");
@@ -100,13 +100,13 @@ export default function WorkoutTab({
 
   // Add a set to current working exercise
   const handleAddSet = () => {
-    const w = parseFloat(setWeight);
-    const r = parseInt(setReps);
+    const w = parseFloat(serieWeight);
+    const r = parseInt(serieReps);
     if (isNaN(w) || isNaN(r)) return;
 
-    setCurrentSets([...currentSets, { type: setType, weight: w, reps: r }]);
-    setWeight("");
-    setReps("");
+    setCurrentSets([...currentSets, { type: serieType, weight: w, reps: r }]);
+    setSerieWeight("");
+    setSerieReps("");
   };
 
   const handleRemoveSet = (index) => {
@@ -296,11 +296,11 @@ export default function WorkoutTab({
               {/* Set types — grid 2x2 */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "12px" }}>
                 {SET_TYPES.map((t) => {
-                  const isActive = setType === t.id;
+                  const isActive = serieType === t.id;
                   return (
                     <button
                       key={t.id}
-                      onClick={() => setSetType(t.id)}
+                      onClick={() => setSerieType(t.id)}
                       style={{
                         padding: "9px 0",
                         borderRadius: "10px",
@@ -331,8 +331,8 @@ export default function WorkoutTab({
                   <input
                     type="number"
                     placeholder="80"
-                    value={setWeight}
-                    onChange={(e) => setSetWeight(e.target.value)}
+                    value={serieWeight}
+                    onChange={(e) => setSerieWeight(e.target.value)}
                   />
                 </div>
                 <div>
@@ -340,8 +340,8 @@ export default function WorkoutTab({
                   <input
                     type="number"
                     placeholder="10"
-                    value={setReps}
-                    onChange={(e) => setReps(e.target.value)}
+                    value={serieReps}
+                    onChange={(e) => setSerieReps(e.target.value)}
                   />
                 </div>
               </div>
