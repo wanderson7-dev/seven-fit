@@ -352,7 +352,12 @@ export default function ProgressTab({
               <div className="label" style={{ marginTop: "8px" }}>
                 Data
               </div>
-              <input type="date" value={photoDate} onChange={(e) => setPhotoDate(e.target.value)} />
+              <input
+                type="date"
+                value={photoDate}
+                onChange={(e) => setPhotoDate(e.target.value)}
+                style={{ minWidth: 0, width: "100%" }}
+              />
             </div>
 
             {/* Three-angle photo selectors */}
@@ -379,7 +384,6 @@ export default function ProgressTab({
                     id={`photo-${angle}`}
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     style={{ display: "none" }}
                     onChange={(e) => handlePhotoUpload(angle, e)}
                   />
