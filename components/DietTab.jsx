@@ -493,7 +493,7 @@ export default function DietTab({
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "7px 10px" }}>
                         <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.3px" }}>{label}</div>
-                        <div style={{ fontSize: "14px", fontWeight: "700", color }}>{value}<span style={{ fontSize: "10px", fontWeight: "400", color: "rgba(255,255,255,0.35)" }}>g</span></div>
+                        <div style={{ fontSize: "14px", fontWeight: "700", color }}>{parseFloat(value.toFixed(1))}<span style={{ fontSize: "10px", fontWeight: "400", color: "rgba(255,255,255,0.35)" }}>g</span></div>
                       </div>
                     ))}
                   </div>
@@ -504,7 +504,7 @@ export default function DietTab({
                   <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "13px", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.foodName}</div>
-                      <div className="small">{l.qty}g · P:{l.protein}g C:{l.carbs}g G:{l.fat}g</div>
+                      <div className="small">{l.qty}g · P:{parseFloat((l.protein||0).toFixed(1))}g C:{parseFloat((l.carbs||0).toFixed(1))}g G:{parseFloat((l.fat||0).toFixed(1))}g</div>
                     </div>
                     <div className="row" style={{ gap: "8px", flexShrink: 0, marginLeft: "8px" }}>
                       <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316" }}>{l.kcal}</span>

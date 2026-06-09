@@ -400,15 +400,21 @@ export default function Home() {
   };
 
   const getTotals = (logs) => {
-    return logs.reduce(
+    const raw = logs.reduce(
       (a, l) => ({
-        kcal: a.kcal + l.kcal,
+        kcal: a.kcal + (l.kcal || 0),
         protein: a.protein + (l.protein || 0),
         carbs: a.carbs + (l.carbs || 0),
         fat: a.fat + (l.fat || 0),
       }),
       { kcal: 0, protein: 0, carbs: 0, fat: 0 }
     );
+    return {
+      kcal: Math.round(raw.kcal),
+      protein: parseFloat(raw.protein.toFixed(1)),
+      carbs: parseFloat(raw.carbs.toFixed(1)),
+      fat: parseFloat(raw.fat.toFixed(1)),
+    };
   };
 
   const allFoods = () => {
