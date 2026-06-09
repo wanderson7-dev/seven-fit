@@ -73,7 +73,9 @@ const DEFAULT_FOODS = [
 const COLORS = ["#f97316", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#6b7280", "#ef4444"];
 const SET_TYPES = [
   { id: "aquecimento", label: "Aquecimento", emoji: "🔥", color: "#f59e0b" },
-  { id: "valida", label: "Válida", emoji: "✅", color: "#10b981" }
+  { id: "valida",     label: "Válida",       emoji: "✅", color: "#10b981" },
+  { id: "pap",        label: "PAP",          emoji: "⚡", color: "#8b5cf6" },
+  { id: "feeder",     label: "Feeder",       emoji: "🩸", color: "#ef4444" },
 ];
 
 export default function Home() {

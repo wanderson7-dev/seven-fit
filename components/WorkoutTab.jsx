@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Flame, CheckCircle2, BookOpen, History, ArrowLeftRight, X, Plus, Save } from "lucide-react";
+import { Flame, CheckCircle2, BookOpen, History, ArrowLeftRight, X, Plus, Save, Zap, Droplets, ChevronDown } from "lucide-react";
 
 export default function WorkoutTab({
   state,
@@ -31,14 +31,27 @@ export default function WorkoutTab({
   const [showExPicker, setShowExPicker] = useState(false);
   const [customExName, setCustomExName] = useState("");
   const [swapForIndex, setSwapForIndex] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null); // override manual de grupo
 
-  const s = todaySched();
-  const exs = getExercises(s.group);
+  // Ícone de cada tipo de série
+  const setTypeIcon = (id, size = 14) => {
+    if (id === "aquecimento") return <Flame size={size} />;
+    if (id === "pap")         return <Zap size={size} />;
+    if (id === "feeder")      return <Droplets size={size} />;
+    return <CheckCircle2 size={size} />;
+  };
 
-  function todaySched() {
-    const dow = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"][new Date().getDay()];
+  // Retorna o cronograma do dia correspondente à data da sessão
+  function schedForDate(dateStr) {
+    const d = new Date(dateStr + "T12:00:00");
+    const dow = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"][d.getDay()];
     return state.schedule.find((x) => x.day === dow) || state.schedule[6];
   }
+
+  const s = schedForDate(sessionDate);
+  const activeGroup = selectedGroup || s.group;
+  const exs = getExercises(activeGroup);
+  const ALL_GROUPS = ["Push", "Pull", "Legs", "Upper", "Lower"];
 
   // Get previous performance hint for an exercise
   const getPrevPerf = (exName) => {
@@ -199,11 +212,15 @@ export default function WorkoutTab({
           marginBottom: "16px",
         }}
       >
-        <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>Treino de Hoje</div>
+        <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>
+          {sessionDate === today() ? "Treino de Hoje" : `Treino de ${fmtDate(sessionDate)}`}
+        </div>
         <div className="syne" style={{ fontSize: "22px", fontWeight: "800", color: s.color }}>
           {s.type}
         </div>
-        {s.group && <div className="small" style={{ marginTop: "4px" }}>{exs.length} exercícios disponíveis</div>}
+        <div className="small" style={{ marginTop: "4px" }}>
+          {activeGroup ? `${exs.length} exercícios — ${activeGroup}` : "Selecione um grupo muscular abaixo"}
+        </div>
       </div>
 
       {/* SUB TABS */}
@@ -276,8 +293,8 @@ export default function WorkoutTab({
               {/* Prev performance hint */}
               {getPrevPerfHint(activeEx)}
 
-              {/* Set types */}
-              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              {/* Set types — grid 2x2 */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "12px" }}>
                 {SET_TYPES.map((t) => {
                   const isActive = setType === t.id;
                   return (
@@ -285,23 +302,23 @@ export default function WorkoutTab({
                       key={t.id}
                       onClick={() => setSetType(t.id)}
                       style={{
-                        flex: 1,
-                        padding: "10px 0",
+                        padding: "9px 0",
                         borderRadius: "10px",
-                        border: "none",
+                        border: isActive ? "none" : "1px solid rgba(255,255,255,0.08)",
                         cursor: "pointer",
                         fontSize: "12px",
                         fontWeight: "700",
                         fontFamily: "'DM Sans',sans-serif",
-                        background: isActive ? t.color : "rgba(255,255,255,0.06)",
-                        color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                        background: isActive ? t.color : "rgba(255,255,255,0.04)",
+                        color: isActive ? "#fff" : "rgba(255,255,255,0.45)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        gap: "6px"
+                        gap: "5px",
+                        transition: "all 0.18s",
                       }}
                     >
-                      {t.id === "aquecimento" ? <Flame size={14} /> : <CheckCircle2 size={14} />} {t.label}
+                      {setTypeIcon(t.id)} {t.label}
                     </button>
                   );
                 })}
@@ -347,7 +364,7 @@ export default function WorkoutTab({
                       <div className="set-item" key={index}>
                         <div className="row" style={{ gap: "10px" }}>
                           <span className="tag" style={{ background: typeSpec.color, color: "#fff", display: "flex", alignItems: "center", gap: "4px" }}>
-                            {typeSpec.id === "aquecimento" ? <Flame size={11} /> : <CheckCircle2 size={11} />} {typeSpec.label}
+                            {setTypeIcon(typeSpec.id, 11)} {typeSpec.label}
                           </span>
                           <span style={{ fontSize: "14px", color: typeSpec.color, fontWeight: "700" }}>
                             {set.weight}kg × {set.reps}
@@ -383,13 +400,29 @@ export default function WorkoutTab({
               </div>
             </div>
           ) : (
-            <button
-              className="btn btn-primary"
-              style={{ width: "100%", marginBottom: "16px", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
-              onClick={() => setShowExPicker(true)}
-            >
-              <Plus size={16} /> Adicionar Exercício
-            </button>
+            <div>
+              {/* Seletor de grupo muscular */}
+              <div style={{ marginBottom: "12px" }}>
+                <div className="label" style={{ marginBottom: "6px" }}>Grupo muscular</div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {ALL_GROUPS.map((g) => (
+                    <button key={g} onClick={() => setSelectedGroup(selectedGroup === g ? null : g)}
+                      style={{ padding: "7px 14px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", transition: "all 0.18s",
+                        background: activeGroup === g ? s.color : "rgba(255,255,255,0.07)",
+                        color: activeGroup === g ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ width: "100%", marginBottom: "16px", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                onClick={() => setShowExPicker(true)}
+              >
+                <Plus size={16} /> Adicionar Exercício
+              </button>
+            </div>
           )}
 
           {/* Exercise Picker Section */}
@@ -499,7 +532,7 @@ export default function WorkoutTab({
                     return (
                       <div key={sIdx} style={{ fontSize: "12px", display: "flex", gap: "8px", padding: "3px 0", alignItems: "center" }}>
                         <span style={{ color: typeSpec.color, fontWeight: "600", width: "95px", display: "flex", alignItems: "center", gap: "4px" }}>
-                          {typeSpec.id === "aquecimento" ? <Flame size={12} /> : <CheckCircle2 size={12} />} {typeSpec.label}
+                          {setTypeIcon(typeSpec.id, 12)} {typeSpec.label}
                         </span>
                         <span style={{ color: "rgba(255,255,255,0.7)" }}>
                           {set.weight}kg × {set.reps}
@@ -630,7 +663,7 @@ export default function WorkoutTab({
                           return (
                             <div key={sIdx} style={{ fontSize: "11px", display: "flex", gap: "8px", color: "rgba(255,255,255,0.5)", alignItems: "center" }}>
                               <span style={{ color: typeSpec.color, fontWeight: "600", width: "95px", display: "flex", alignItems: "center", gap: "4px" }}>
-                                {typeSpec.id === "aquecimento" ? <Flame size={11} /> : <CheckCircle2 size={11} />} {typeSpec.label}
+                                {setTypeIcon(typeSpec.id, 11)} {typeSpec.label}
                               </span>
                               <span>
                                 {set.weight}kg × {set.reps}
