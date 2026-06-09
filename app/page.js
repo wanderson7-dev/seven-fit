@@ -42,12 +42,49 @@ const DEFAULT_MEAL_PLAN = {
     { time: "20:30", name: "Jantar", foods: ["180g frango grelhado", "200g batata doce", "1 ovo + fio de azeite"], kcal: 700 }
   ]
 };
+// Biblioteca completa por grupamento (para selecionar ao montar o plano)
 const DEFAULT_EXERCISES = {
-  Push: ["Supino Reto", "Supino Inclinado", "Crucifixo", "Desenvolvimento", "Elevação Lateral", "Tríceps Corda", "Tríceps Testa", "Tríceps Francês"],
-  Pull: ["Puxada Frente", "Puxada Neutra", "Remada Curvada", "Remada Unilateral", "Rosca Direta", "Rosca Martelo", "Face Pull", "Pullover"],
-  Legs: ["Agachamento Livre", "Leg Press", "Cadeira Extensora", "Mesa Flexora", "Stiff", "Avanço", "Panturrilha em Pé", "Panturrilha Sentado"],
-  Upper: ["Supino Reto", "Desenvolvimento", "Elevação Lateral", "Puxada Frente", "Remada Curvada", "Rosca Direta", "Tríceps Corda"],
-  Lower: ["Agachamento Livre", "Leg Press", "Cadeira Extensora", "Mesa Flexora", "Stiff", "Panturrilha em Pé"]
+  // PUSH — Peito + Ombro + Tríceps
+  Push: [
+    "Supino Reto", "Supino Inclinado", "Supino Declinado", "Crucifixo", "Crucifixo Inclinado", "Pec Deck", "Crossover",
+    "Desenvolvimento com Barra", "Desenvolvimento com Halteres", "Elevação Lateral", "Elevação Frontal", "Encolhimento", "Face Pull",
+    "Tríceps Corda", "Tríceps Testa", "Tríceps Francês", "Tríceps Banco", "Mergulho", "Extensão Tríceps"
+  ],
+  // PULL — Costas + Bíceps
+  Pull: [
+    "Puxada Frente", "Puxada Neutra", "Puxada Fechada", "Barra Fixa", "Pullover",
+    "Remada Curvada", "Remada Unilateral", "Remada Cavalinho", "Remada Sentado", "Serrote",
+    "Rosca Direta", "Rosca Martelo", "Rosca Concentrada", "Rosca 21", "Rosca Inversa", "Rosca Scott"
+  ],
+  // LEGS — Pernas completo
+  Legs: [
+    "Agachamento Livre", "Agachamento Smith", "Agachamento Sumô", "Leg Press", "Hack Squat",
+    "Cadeira Extensora", "Mesa Flexora", "Cadeira Adutora", "Cadeira Abdutora",
+    "Stiff", "Avanço", "Avanço com Barra", "Agachamento Búlgaro",
+    "Panturrilha em Pé", "Panturrilha Sentado", "Panturrilha no Leg Press"
+  ],
+  // UPPER — Peito + Ombro + Tríceps + Costas
+  Upper: [
+    "Supino Reto", "Supino Inclinado", "Crucifixo", "Pec Deck",
+    "Desenvolvimento com Halteres", "Elevação Lateral", "Face Pull",
+    "Tríceps Corda", "Tríceps Testa",
+    "Puxada Frente", "Remada Curvada", "Remada Unilateral", "Pullover"
+  ],
+  // LOWER — Pernas + Bíceps
+  Lower: [
+    "Agachamento Livre", "Leg Press", "Cadeira Extensora", "Mesa Flexora", "Stiff",
+    "Avanço", "Panturrilha em Pé", "Panturrilha Sentado",
+    "Rosca Direta", "Rosca Martelo", "Rosca Concentrada"
+  ]
+};
+
+// Plano padrão de exercícios por treino (o usuário pode personalizar)
+const DEFAULT_WORKOUT_PLANS = {
+  Push: ["Supino Reto", "Supino Inclinado", "Crucifixo", "Desenvolvimento com Halteres", "Elevação Lateral", "Tríceps Corda", "Tríceps Testa"],
+  Pull: ["Puxada Frente", "Remada Curvada", "Remada Unilateral", "Pullover", "Rosca Direta", "Rosca Martelo"],
+  Legs: ["Agachamento Livre", "Leg Press", "Cadeira Extensora", "Mesa Flexora", "Stiff", "Panturrilha em Pé"],
+  Upper: ["Supino Reto", "Desenvolvimento com Halteres", "Elevação Lateral", "Puxada Frente", "Remada Curvada", "Tríceps Corda"],
+  Lower: ["Leg Press", "Stiff", "Mesa Flexora", "Cadeira Extensora", "Panturrilha em Pé", "Rosca Direta", "Rosca Martelo"],
 };
 const DEFAULT_SCHEDULE = [
   { day: "Seg", type: "Push", color: "#f97316", calType: "normal", group: "Push" },
@@ -92,6 +129,7 @@ export default function Home() {
     weightLogs: [],
     customFoods: [],
     customExercises: {},
+    workoutPlans: DEFAULT_WORKOUT_PLANS,
     schedule: DEFAULT_SCHEDULE,
     progressPhotos: [],
     // Session state
@@ -126,12 +164,14 @@ export default function Home() {
       const parsedProfile = profile ? JSON.parse(profile) : null;
       const parsedMealPlan = mealPlan ? JSON.parse(mealPlan) : null;
 
+      const workoutPlansRaw = localStorage.getItem("co_workoutPlans");
       return {
         foodLogs: foodLogs ? JSON.parse(foodLogs) : [],
         workoutLogs: workoutLogs ? JSON.parse(workoutLogs) : [],
         weightLogs: weightLogs ? JSON.parse(weightLogs) : [],
         customFoods: customFoods ? JSON.parse(customFoods) : [],
         customExercises: customExercises ? JSON.parse(customExercises) : {},
+        workoutPlans: workoutPlansRaw ? JSON.parse(workoutPlansRaw) : DEFAULT_WORKOUT_PLANS,
         schedule: (parsedSchedule && parsedSchedule.length === 7) ? parsedSchedule : DEFAULT_SCHEDULE,
         progressPhotos: progressPhotos ? JSON.parse(progressPhotos) : [],
         selectedFood: null,
@@ -151,6 +191,7 @@ export default function Home() {
       localStorage.setItem("co_weightLogs", JSON.stringify(data.weightLogs || []));
       localStorage.setItem("co_customFoods", JSON.stringify(data.customFoods || []));
       localStorage.setItem("co_customExercises", JSON.stringify(data.customExercises || {}));
+      localStorage.setItem("co_workoutPlans", JSON.stringify(data.workoutPlans || DEFAULT_WORKOUT_PLANS));
       localStorage.setItem("co_schedule", JSON.stringify(data.schedule || DEFAULT_SCHEDULE));
       localStorage.setItem("co_progressPhotos", JSON.stringify(data.progressPhotos || []));
       localStorage.setItem("co_profile", JSON.stringify(data.profile || DEFAULT_PROFILE));
@@ -698,6 +739,15 @@ export default function Home() {
     setIsScannerOpen(true);
   };
 
+  // Salva o plano de exercícios de um grupo (lista editável pelo usuário)
+  const saveWorkoutPlan = (group, exercises) => {
+    const updated = {
+      ...state,
+      workoutPlans: { ...state.workoutPlans, [group]: exercises },
+    };
+    saveState(updated);
+  };
+
   const saveCustomExercise = async (group, name) => {
     if (!group || !name) return;
     
@@ -953,6 +1003,9 @@ export default function Home() {
                   removeWorkoutLog={removeWorkoutLog}
                   getExercises={getExercises}
                   saveCustomExercise={saveCustomExercise}
+                  workoutPlans={state.workoutPlans || DEFAULT_WORKOUT_PLANS}
+                  saveWorkoutPlan={saveWorkoutPlan}
+                  DEFAULT_EXERCISES={DEFAULT_EXERCISES}
                   SET_TYPES={SET_TYPES}
                   today={today}
                   fmtDate={fmtDate}
