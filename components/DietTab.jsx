@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Camera, Cloud, Upload, Download, Trash2, Settings, Flame, X, Plus, ChevronDown, ChevronUp, History } from "lucide-react";
+import { Search, Camera, Upload, Download, Trash2, Settings, Flame, X, Plus, ChevronDown, ChevronUp, History } from "lucide-react";
 
 // Reusable ProgressBar Component
 function ProgressBar({ val, max, color, label, unit = "" }) {
@@ -50,11 +50,7 @@ export default function DietTab({
   const [logDate, setLogDate] = useState(() => today());
   const [activeMeal, setActiveMeal] = useState(null); // qual refeição está com busca aberta
   const [histDietDate, setHistDietDate] = useState("");
-  const [foodsTab, setFoodsTab] = useState("meus"); // "meus" | "biblioteca"
   const [showAddForm, setShowAddForm] = useState(false);
-  const [libSearch, setLibSearch] = useState("");
-  const [libFoods, setLibFoods] = useState([]);
-  const [isLibSearching, setIsLibSearching] = useState(false);
   // food picked from Alimentos tab (needs meal + qty selection)
   const [pickedFood, setPickedFood] = useState(null);
   const [pickedQty, setPickedQty] = useState("100");
@@ -63,33 +59,6 @@ export default function DietTab({
   const [pickedPortion, setPickedPortion] = useState("");
   const [planStatus, setPlanStatus] = useState({ type: "", message: "" });
 
-  // Live online food search state
-  const [onlineFoods, setOnlineFoods] = useState([]);
-  const [isSearchingOnline, setIsSearchingOnline] = useState(false);
-
-  useEffect(() => {
-    if (!foodSearch || foodSearch.trim().length < 2) {
-      setOnlineFoods([]);
-      return;
-    }
-
-    const delayDebounceFn = setTimeout(async () => {
-      setIsSearchingOnline(true);
-      try {
-        const response = await fetch(`/api/food-search?query=${encodeURIComponent(foodSearch)}`);
-        const data = await response.json();
-        if (response.ok && data.success) {
-          setOnlineFoods(data.foods);
-        }
-      } catch (err) {
-        console.error("Online search error:", err);
-      } finally {
-        setIsSearchingOnline(false);
-      }
-    }, 400); // 400ms debounce
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [foodSearch]);
 
   // Custom Food Form State
   const [cfName, setCfName] = useState("");
@@ -141,19 +110,6 @@ export default function DietTab({
     setActiveMeal(null);
   };
 
-  // Biblioteca search debounce
-  useEffect(() => {
-    if (!libSearch || libSearch.trim().length < 2) { setLibFoods([]); return; }
-    const t = setTimeout(async () => {
-      setIsLibSearching(true);
-      try {
-        const res = await fetch(`/api/food-search?query=${encodeURIComponent(libSearch)}`);
-        const data = await res.json();
-        if (res.ok && data.success) setLibFoods(data.foods);
-      } catch { /* ignore */ } finally { setIsLibSearching(false); }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [libSearch]);
 
   const handleAddPicked = () => {
     if (!pickedFood) return;
@@ -381,123 +337,40 @@ export default function DietTab({
                   </div>
                 </div>
               ) : (
-                <div>
-                  {/* Inner tabs: Meus Alimentos / Biblioteca */}
-                  <div style={{ display: "flex", gap: "4px", padding: "10px 12px 0", background: "transparent" }}>
-                    {[{ id: "meus", label: "Meus Alimentos" }, { id: "biblioteca", label: "Biblioteca" }].map((t) => (
-                      <button key={t.id} onClick={() => { setFoodsTab(t.id); setFoodSearch(""); setLibSearch(""); }} style={{ flex: 1, padding: "8px 0", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s", background: foodsTab === t.id ? "#f97316" : "rgba(255,255,255,0.06)", color: foodsTab === t.id ? "#fff" : "rgba(255,255,255,0.45)" }}>
-                        {t.label}
-                      </button>
-                    ))}
+                <div style={{ padding: "10px 12px 14px" }}>
+                  {/* Filtro + lista de alimentos */}
+                  <div style={{ position: "relative", marginBottom: "10px" }}>
+                    <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
+                    <input type="text" placeholder="Filtrar alimentos..." value={foodSearch} onChange={(e) => setFoodSearch(e.target.value)} style={{ paddingLeft: "32px", fontSize: "13px" }} />
                   </div>
-
-                  <div style={{ padding: "10px 12px 14px" }}>
-
-                    {/* ── Meus Alimentos ── */}
-                    {foodsTab === "meus" && (
-                      <div>
-                        {/* Search local */}
-                        <div style={{ position: "relative", marginBottom: "10px" }}>
-                          <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
-                          <input type="text" placeholder="Filtrar meus alimentos..." value={foodSearch}
-                            onChange={(e) => setFoodSearch(e.target.value)}
-                            style={{ paddingLeft: "32px", fontSize: "13px" }} />
-                        </div>
-
-                        {/* Recently used */}
-                        {!foodSearch && (() => {
-                          const usedNames = [...new Set(state.foodLogs.map(l => l.foodName))];
-                          const recent = usedNames.map(name => allFoods().find(f => f.name === name)).filter(Boolean).slice(0, 5);
-                          return recent.length > 0 ? (
-                            <div style={{ marginBottom: "6px" }}>
-                              <div style={{ fontSize: "9px", fontWeight: "700", color: "rgba(255,255,255,0.3)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
-                                <History size={10} /> Recentes
-                              </div>
-                              {recent.map((f) => (
-                                <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px", background: "rgba(255,255,255,0.04)" }}>
-                                  <div>
-                                    <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
-                                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
-                                  </div>
-                                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
-                                </div>
-                              ))}
-                              <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
+                  {!foodSearch && (() => {
+                    const recent = [...new Set(state.foodLogs.map(l => l.foodName))].map(n => allFoods().find(f => f.name === n)).filter(Boolean).slice(0, 5);
+                    return recent.length > 0 ? (
+                      <div style={{ marginBottom: "6px" }}>
+                        <div style={{ fontSize: "9px", fontWeight: "700", color: "rgba(255,255,255,0.3)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}><History size={10} /> Recentes</div>
+                        {recent.map((f) => (
+                          <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px", background: "rgba(255,255,255,0.04)" }}>
+                            <div>
+                              <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
+                              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
                             </div>
-                          ) : null;
-                        })()}
-
-                        {/* Full list filtered */}
-                        <div style={{ maxHeight: "260px", overflowY: "auto" }}>
-                          {(foodSearch
-                            ? allFoods().filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase()))
-                            : allFoods()
-                          ).map((f) => (
-                            <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px" }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
-                                  {f.name} {f.scanned && <Camera size={10} style={{ color: "#10b981" }} />}
-                                </div>
-                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
-                              </div>
-                              <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
-                            </div>
-                          ))}
-                        </div>
+                            <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
+                          </div>
+                        ))}
+                        <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
                       </div>
-                    )}
-
-                    {/* ── Biblioteca ── */}
-                    {foodsTab === "biblioteca" && (
-                      <div>
-                        <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-                          <div style={{ position: "relative", flex: 1 }}>
-                            <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
-                            <input autoFocus type="text" placeholder="Buscar na base de dados..." value={libSearch}
-                              onChange={(e) => setLibSearch(e.target.value)}
-                              style={{ paddingLeft: "32px", fontSize: "13px" }} />
-                          </div>
-                          <button className="btn" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", padding: "0 11px", height: "42px", display: "flex", alignItems: "center", flexShrink: 0 }} onClick={openScanner}>
-                            <Camera size={17} />
-                          </button>
+                    ) : null;
+                  })()}
+                  <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+                    {(foodSearch ? allFoods().filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())) : allFoods()).map((f) => (
+                      <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
+                          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
                         </div>
-
-                        {isLibSearching && (
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px", color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>
-                            <div style={{ width: "10px", height: "10px", border: "2px solid rgba(255,255,255,0.08)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-                            Buscando...
-                          </div>
-                        )}
-
-                        {!libSearch && !isLibSearching && (
-                          <div style={{ textAlign: "center", padding: "24px 12px", color: "rgba(255,255,255,0.22)", fontSize: "12px" }}>
-                            <Cloud size={28} style={{ margin: "0 auto 8px", display: "block", opacity: 0.25 }} />
-                            Digite para buscar na base externa
-                          </div>
-                        )}
-
-                        <div style={{ maxHeight: "260px", overflowY: "auto" }}>
-                          {libFoods.map((f) => (
-                            <div key={f.id} onClick={() => handleSelectFood(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: "pointer", marginBottom: "2px" }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
-                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g</div>
-                              </div>
-                              <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {libSearch && !isLibSearching && libFoods.length === 0 && (
-                          <div style={{ textAlign: "center", padding: "20px 12px" }}>
-                            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", marginBottom: "10px" }}>Nenhum resultado para "{libSearch}"</div>
-                            <button className="btn" onClick={() => openScanner("label")} style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", color: "#f97316", fontSize: "11px", fontWeight: "700", padding: "7px 14px", borderRadius: "10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                              <Camera size={12} /> Fotografar rótulo
-                            </button>
-                          </div>
-                        )}
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: "#f97316", marginLeft: "8px", flexShrink: 0 }}>{f.kcal} kcal</span>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               )}
@@ -767,15 +640,6 @@ export default function DietTab({
       {/* + ALIMENTO SUB-TAB */}
       {activeSubTab === "foods" && (
         <div>
-          {/* Inner tabs */}
-          <div style={{ display: "flex", gap: "4px", background: "rgba(255,255,255,0.045)", padding: "4px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.06)", marginBottom: "14px" }}>
-            {[{ id: "meus", label: "Meus Alimentos" }, { id: "biblioteca", label: "Biblioteca" }].map((t) => (
-              <button key={t.id} onClick={() => setFoodsTab(t.id)} style={{ flex: 1, padding: "9px 0", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s", background: foodsTab === t.id ? "#f97316" : "transparent", color: foodsTab === t.id ? "#fff" : "rgba(255,255,255,0.4)", boxShadow: foodsTab === t.id ? "0 2px 12px rgba(249,115,22,0.32)" : "none" }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
           {/* Picked food confirm panel */}
           {pickedFood && (
             <div style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.3)", borderRadius: "16px", padding: "14px", marginBottom: "14px" }}>
@@ -906,65 +770,6 @@ export default function DietTab({
           )}
 
           {/* ── BIBLIOTECA ── */}
-          {foodsTab === "biblioteca" && (
-            <div>
-              <div style={{ position: "relative", marginBottom: "12px" }}>
-                <Search size={16} style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)" }} />
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Buscar na base de dados..."
-                  value={libSearch}
-                  onChange={(e) => setLibSearch(e.target.value)}
-                  style={{ paddingLeft: "38px" }}
-                />
-              </div>
-
-              {isLibSearching && (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px", color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>
-                  <div style={{ width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.1)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-                  Buscando na biblioteca...
-                </div>
-              )}
-
-              {!libSearch && !isLibSearching && (
-                <div style={{ textAlign: "center", padding: "40px 20px", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>
-                  <Cloud size={32} style={{ margin: "0 auto 10px", display: "block", opacity: 0.3 }} />
-                  Digite o nome de um alimento para buscar na base de dados externa
-                </div>
-              )}
-
-              {libFoods.length > 0 && (
-                <div className="card" style={{ padding: "14px 16px" }}>
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
-                    <Cloud size={11} style={{ color: "#f97316" }} /> {libFoods.length} resultados encontrados
-                  </div>
-                  {libFoods.map((f) => (
-                    <div key={f.id} onClick={() => { setPickedFood(f); setPickedQty("100"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
-                      <div style={{ flex: 1, minWidth: 0, marginRight: "8px" }}>
-                        <div style={{ fontSize: "13px", fontWeight: "600" }}>{f.name}</div>
-                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
-                          C:{f.carbs}g · P:{f.protein}g · G:{f.fat}g · /{f.unit}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: "13px", fontWeight: "700", color: "#f97316", flexShrink: 0 }}>{f.kcal} kcal</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {libSearch && !isLibSearching && libFoods.length === 0 && (
-                <div style={{ textAlign: "center", padding: "30px 20px" }}>
-                  <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)", marginBottom: "12px" }}>
-                    Nenhum resultado para "{libSearch}"
-                  </div>
-                  <button className="btn" onClick={() => openScanner("label")} style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", color: "#f97316", fontSize: "12px", fontWeight: "700", padding: "8px 16px", borderRadius: "10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <Camera size={14} /> Fotografar rótulo nutricional
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>
