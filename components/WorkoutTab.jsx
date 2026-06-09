@@ -396,11 +396,8 @@ export default function WorkoutTab({
                 <span style={{ fontWeight: "700", fontSize: "13px" }}>Adicionar exercício</span>
                 <button style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)" }} onClick={() => { setShowAddEx(false); setExSearch(""); }}><X size={16} /></button>
               </div>
-              <div style={{ position: "relative", marginBottom: "8px" }}>
-                <Search size={14} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)" }} />
-                <input type="text" placeholder="Buscar exercício..." value={exSearch} onChange={(e) => setExSearch(e.target.value)} style={{ paddingLeft: "32px" }} />
-              </div>
-              <div style={{ maxHeight: "220px", overflowY: "auto" }}>
+              {/* Lista da biblioteca */}
+              <div style={{ maxHeight: "200px", overflowY: "auto", marginBottom: "10px" }}>
                 {(exSearch ? (getExercises(activeGroup) || []).filter((e) => e.toLowerCase().includes(exSearch.toLowerCase())) : (getExercises(activeGroup) || []))
                   .filter((e) => !sessionExs.some((se) => se.name === e))
                   .map((e) => (
@@ -409,12 +406,39 @@ export default function WorkoutTab({
                       {getPrevPerf(e) && <span style={{ fontSize: "10px", color: "#10b981" }}>✓</span>}
                     </div>
                   ))}
-                {/* Exercício customizado */}
-                {exSearch && !(getExercises(activeGroup) || []).some((e) => e.toLowerCase() === exSearch.toLowerCase()) && (
-                  <div onClick={() => { handleAddExToSession(exSearch); if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, exSearch); }} className="ex-item" style={{ borderRadius: "10px", color: "#f97316" }}>
-                    <span>+ Criar "{exSearch}"</span>
-                  </div>
-                )}
+              </div>
+
+              {/* Criar exercício novo — sempre visível */}
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "10px" }}>
+                <div className="label" style={{ marginBottom: "6px" }}>Criar exercício novo</div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    type="text"
+                    placeholder="Nome do exercício..."
+                    value={exSearch}
+                    onChange={(e) => setExSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && exSearch.trim()) {
+                        const name = exSearch.trim();
+                        handleAddExToSession(name);
+                        if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
+                      }
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    style={{ flexShrink: 0, padding: "0 14px" }}
+                    onClick={() => {
+                      const name = exSearch.trim();
+                      if (!name) return;
+                      handleAddExToSession(name);
+                      if (saveCustomExercise && activeGroup) saveCustomExercise(activeGroup, name);
+                    }}
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
               </div>
             </div>
           )}
