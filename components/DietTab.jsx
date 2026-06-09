@@ -66,6 +66,7 @@ export default function DietTab({
   const [cfProtein, setCfProtein] = useState("");
   const [cfCarbs, setCfCarbs] = useState("");
   const [cfFat, setCfFat] = useState("");
+  const [cfUnit, setCfUnit] = useState("100g"); // "100g" | "1 unidade" | "1 fatia"
 
   const t = getTargets();
   const logs = state.foodLogs.filter((l) => l.date === logDate);
@@ -139,14 +140,10 @@ export default function DietTab({
       protein: parseFloat(cfProtein) || 0,
       carbs: parseFloat(cfCarbs) || 0,
       fat: parseFloat(cfFat) || 0,
+      unit: cfUnit,
     });
 
-    // Reset Form
-    setCfName("");
-    setCfKcal("");
-    setCfProtein("");
-    setCfCarbs("");
-    setCfFat("");
+    setCfName(""); setCfKcal(""); setCfProtein(""); setCfCarbs(""); setCfFat(""); setCfUnit("100g");
   };
 
   // If a scanned food is set externally (e.g. from ScannerModal) in parent state
@@ -748,9 +745,26 @@ export default function DietTab({
                 </button>
                 {showAddForm && (
                   <div style={{ padding: "0 16px 16px" }}>
+                    {/* Base de medida */}
+                    <div style={{ marginBottom: "12px" }}>
+                      <div className="label" style={{ marginBottom: "6px" }}>Base de medida</div>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        {["100g", "1 unidade", "1 fatia"].map((u) => (
+                          <button key={u} onClick={() => setCfUnit(u)}
+                            style={{ flex: 1, padding: "7px 0", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
+                              background: cfUnit === u ? "#f97316" : "rgba(255,255,255,0.07)", color: cfUnit === u ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="small" style={{ marginTop: "5px" }}>
+                        Os valores abaixo são referentes a <strong style={{ color: "#f97316" }}>{cfUnit}</strong>
+                      </div>
+                    </div>
+
                     {[
                       { label: "Nome", val: cfName, set: setCfName, type: "text", placeholder: "Ex: Pasta de Amendoim" },
-                      { label: "Calorias (por 100g)", val: cfKcal, set: setCfKcal, type: "number", placeholder: "Ex: 588" },
+                      { label: `Calorias (por ${cfUnit})`, val: cfKcal, set: setCfKcal, type: "number", placeholder: "Ex: 588" },
                       { label: "Proteína (g)", val: cfProtein, set: setCfProtein, type: "number", placeholder: "Ex: 24" },
                       { label: "Carboidrato (g)", val: cfCarbs, set: setCfCarbs, type: "number", placeholder: "Ex: 20" },
                       { label: "Gordura (g)", val: cfFat, set: setCfFat, type: "number", placeholder: "Ex: 49" },
