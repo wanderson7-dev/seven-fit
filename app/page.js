@@ -435,12 +435,13 @@ export default function Home() {
     }
   };
 
-  const addFoodLog = async (food, qty, logDate) => {
+  const addFoodLog = async (food, qty, logDate, meal) => {
     const ratio = qty / 100;
     const localId = Date.now();
     const newLog = {
       id: localId,
       date: logDate || today(),
+      meal: meal || "Almoço",
       foodName: food.name,
       qty,
       kcal: Math.round(food.kcal * ratio),
