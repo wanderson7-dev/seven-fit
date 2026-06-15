@@ -210,6 +210,95 @@ export default function Home() {
     cacheToLocal(updatedState);
   };
 
+  const mergeLocalAndCloudState = (localState, cloudData) => {
+    if (!cloudData) return localState;
+
+    // 1. Food Logs
+    const mergedFoodLogs = [...(cloudData.foodLogs || [])];
+    const localUnsyncedFood = (localState.foodLogs || []).filter(l => typeof l.id === 'number');
+    localUnsyncedFood.forEach(localLog => {
+      const exists = mergedFoodLogs.some(dbLog => 
+        dbLog.date === localLog.date && 
+        dbLog.meal === localLog.meal && 
+        dbLog.foodName === localLog.foodName && 
+        dbLog.qty === localLog.qty
+      );
+      if (!exists) mergedFoodLogs.push(localLog);
+    });
+
+    // 2. Workout Logs
+    const mergedWorkoutLogs = [...(cloudData.workoutLogs || [])];
+    const localUnsyncedWorkouts = (localState.workoutLogs || []).filter(w => typeof w.id === 'number');
+    localUnsyncedWorkouts.forEach(localLog => {
+      const exists = mergedWorkoutLogs.some(dbLog => 
+        dbLog.date === localLog.date && 
+        dbLog.type === localLog.type
+      );
+      if (!exists) mergedWorkoutLogs.push(localLog);
+    });
+
+    // 3. Weight Logs
+    const mergedWeightLogs = [...(cloudData.weightLogs || [])];
+    const localUnsyncedWeight = (localState.weightLogs || []).filter(w => typeof w.id === 'number');
+    localUnsyncedWeight.forEach(localLog => {
+      const exists = mergedWeightLogs.some(dbLog => 
+        dbLog.date === localLog.date && 
+        Math.abs(dbLog.value - localLog.value) < 0.01
+      );
+      if (!exists) mergedWeightLogs.push(localLog);
+    });
+
+    // 4. Custom Foods
+    const mergedCustomFoods = [...(cloudData.customFoods || [])];
+    (localState.customFoods || []).forEach(localFood => {
+      const exists = mergedCustomFoods.some(dbFood => 
+        dbFood.name.toLowerCase() === localFood.name.toLowerCase()
+      );
+      if (!exists) mergedCustomFoods.push(localFood);
+    });
+
+    // 5. Custom Exercises
+    const mergedCustomExercises = { ...(cloudData.customExercises || {}) };
+    Object.entries(localState.customExercises || {}).forEach(([group, names]) => {
+      if (!mergedCustomExercises[group]) {
+        mergedCustomExercises[group] = [];
+      }
+      names.forEach(name => {
+        if (!mergedCustomExercises[group].includes(name)) {
+          mergedCustomExercises[group].push(name);
+        }
+      });
+    });
+
+    // 6. Custom Muscle Map
+    const mergedCustomMuscleMap = { 
+      ...(localState.customMuscleMap || {}), 
+      ...(cloudData.customMuscleMap || {}) 
+    };
+
+    // 7. Progress Photos
+    const mergedProgressPhotos = [...(cloudData.progressPhotos || [])];
+    (localState.progressPhotos || []).forEach(localPhoto => {
+      const exists = mergedProgressPhotos.some(dbPhoto => dbPhoto.week === localPhoto.week);
+      if (!exists) mergedProgressPhotos.push(localPhoto);
+    });
+
+    return {
+      ...localState,
+      foodLogs: mergedFoodLogs,
+      workoutLogs: mergedWorkoutLogs,
+      weightLogs: mergedWeightLogs,
+      customFoods: mergedCustomFoods,
+      customExercises: mergedCustomExercises,
+      customMuscleMap: mergedCustomMuscleMap,
+      progressPhotos: mergedProgressPhotos,
+      schedule: (cloudData.schedule && cloudData.schedule.length === 7) ? cloudData.schedule : localState.schedule,
+      profile: cloudData.profile ? { ...localState.profile, ...cloudData.profile } : localState.profile,
+      mealPlan: cloudData.mealPlan || localState.mealPlan,
+      selectedFood: null
+    };
+  };
+
   const handleUserSignIn = async (currUser) => {
     setIsSyncing(true);
     setSyncError(null);
@@ -217,19 +306,7 @@ export default function Home() {
       const dbData = await db.fetchUserData(currUser.id);
       if (dbData) {
         setState((prev) => {
-          const newState = {
-            ...prev,
-            foodLogs: dbData.foodLogs || [],
-            workoutLogs: dbData.workoutLogs || [],
-            weightLogs: dbData.weightLogs || [],
-            customFoods: dbData.customFoods || [],
-            customExercises: dbData.customExercises || {},
-            progressPhotos: dbData.progressPhotos || [],
-            schedule: (dbData.schedule && dbData.schedule.length === 7) ? dbData.schedule : prev.schedule,
-            profile: dbData.profile ? { ...prev.profile, ...dbData.profile } : prev.profile,
-            mealPlan: dbData.mealPlan || prev.mealPlan,
-            selectedFood: null
-          };
+          const newState = mergeLocalAndCloudState(prev, dbData);
           cacheToLocal(newState);
           return newState;
         });
@@ -240,12 +317,7 @@ export default function Home() {
           const syncedData = await db.fetchUserData(currUser.id);
           if (syncedData) {
             setState((prev) => {
-              const newState = {
-                ...prev,
-                ...syncedData,
-                schedule: (syncedData.schedule && syncedData.schedule.length === 7) ? syncedData.schedule : prev.schedule,
-                selectedFood: null
-              };
+              const newState = mergeLocalAndCloudState(prev, syncedData);
               cacheToLocal(newState);
               return newState;
             });
@@ -450,10 +522,14 @@ export default function Home() {
       try {
         const savedLog = await db.addWeightLog(user.id, logObj);
         if (savedLog && savedLog.id) {
-          setState(prev => ({
-            ...prev,
-            weightLogs: prev.weightLogs.map(w => w.id === localId ? { ...w, id: savedLog.id } : w)
-          }));
+          setState(prev => {
+            const newState = {
+              ...prev,
+              weightLogs: prev.weightLogs.map(w => w.id === localId ? { ...w, id: savedLog.id } : w)
+            };
+            cacheToLocal(newState);
+            return newState;
+          });
         }
       } catch (err) {
         console.error("Failed to save weight log to cloud:", err);
@@ -483,10 +559,14 @@ export default function Home() {
       try {
         const savedFood = await db.addCustomFood(user.id, newFood);
         if (savedFood && savedFood.id) {
-          setState(prev => ({
-            ...prev,
-            customFoods: prev.customFoods.map(f => f.id === localId ? { ...f, id: savedFood.id } : f)
-          }));
+          setState(prev => {
+            const newState = {
+              ...prev,
+              customFoods: prev.customFoods.map(f => f.id === localId ? { ...f, id: savedFood.id } : f)
+            };
+            cacheToLocal(newState);
+            return newState;
+          });
         }
       } catch (err) {
         console.error("Failed to save custom food to cloud:", err);
@@ -520,19 +600,23 @@ export default function Home() {
       try {
         const savedLog = await db.addFoodLog(user.id, newLog);
         if (savedLog && savedLog.id) {
-          setState(prev => ({
-            ...prev,
-            foodLogs: prev.foodLogs.map(l => l.id === localId ? {
-              ...l,
-              id: savedLog.id,
-              foodName: savedLog.food_name,
-              qty: Number(savedLog.qty),
-              kcal: Number(savedLog.kcal),
-              protein: Number(savedLog.protein),
-              carbs: Number(savedLog.carbs),
-              fat: Number(savedLog.fat)
-            } : l)
-          }));
+          setState(prev => {
+            const newState = {
+              ...prev,
+              foodLogs: prev.foodLogs.map(l => l.id === localId ? {
+                ...l,
+                id: savedLog.id,
+                foodName: savedLog.food_name,
+                qty: Number(savedLog.qty),
+                kcal: Number(savedLog.kcal),
+                protein: Number(savedLog.protein),
+                carbs: Number(savedLog.carbs),
+                fat: Number(savedLog.fat)
+              } : l)
+            };
+            cacheToLocal(newState);
+            return newState;
+          });
         }
       } catch (err) {
         console.error("Failed to add food log to cloud:", err);
@@ -577,13 +661,17 @@ export default function Home() {
       try {
         const savedWorkout = await db.addWorkoutLog(user.id, newWorkout);
         if (savedWorkout && savedWorkout.id) {
-          setState(prev => ({
-            ...prev,
-            workoutLogs: prev.workoutLogs.map(w => w.id === localId ? {
-              ...w, id: savedWorkout.id, date: savedWorkout.date, type: savedWorkout.type,
-              exercises: savedWorkout.exercises, notes: savedWorkout.notes, volume: Number(savedWorkout.volume)
-            } : w)
-          }));
+          setState(prev => {
+            const newState = {
+              ...prev,
+              workoutLogs: prev.workoutLogs.map(w => w.id === localId ? {
+                ...w, id: savedWorkout.id, date: savedWorkout.date, type: savedWorkout.type,
+                exercises: savedWorkout.exercises, notes: savedWorkout.notes, volume: Number(savedWorkout.volume)
+              } : w)
+            };
+            cacheToLocal(newState);
+            return newState;
+          });
           return savedWorkout.id;
         }
         return localId;
@@ -676,14 +764,18 @@ export default function Home() {
         };
         const savedPhoto = await db.addProgressPhoto(user.id, photoRecord);
         if (savedPhoto && savedPhoto.id) {
-          setState(prev => ({
-            ...prev,
-            progressPhotos: prev.progressPhotos.map(p => p.id === localId ? {
-              ...p,
-              id: savedPhoto.id,
-              images: savedPhoto.image_urls
-            } : p)
-          }));
+          setState(prev => {
+            const newState = {
+              ...prev,
+              progressPhotos: prev.progressPhotos.map(p => p.id === localId ? {
+                ...p,
+                id: savedPhoto.id,
+                images: savedPhoto.image_urls
+              } : p)
+            };
+            cacheToLocal(newState);
+            return newState;
+          });
         }
       } catch (err) {
         console.error("Failed to upload/save progress photos to cloud:", err);
@@ -788,7 +880,7 @@ export default function Home() {
     saveState(updated);
   };
 
-  const saveCustomExercise = async (group, name) => {
+  const saveCustomExercise = async (group, name, muscle = null) => {
     if (!group || !name) return;
     
     const updatedCustomExs = { ...state.customExercises };
@@ -798,9 +890,23 @@ export default function Home() {
     if (!updatedCustomExs[group].includes(name)) {
       updatedCustomExs[group].push(name);
     }
+
+    const updatedCustomMuscleMap = { ...state.customMuscleMap };
+    if (muscle) {
+      updatedCustomMuscleMap[name] = muscle;
+    }
+
+    const currentPlan = (state.workoutPlans && state.workoutPlans[group]) || [];
+    const updatedWorkoutPlans = {
+      ...state.workoutPlans,
+      [group]: currentPlan.includes(name) ? currentPlan : [...currentPlan, name]
+    };
+
     const updated = {
       ...state,
       customExercises: updatedCustomExs,
+      customMuscleMap: updatedCustomMuscleMap,
+      workoutPlans: updatedWorkoutPlans
     };
     saveState(updated);
 

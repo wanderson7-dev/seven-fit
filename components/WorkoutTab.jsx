@@ -577,12 +577,7 @@ export default function WorkoutTab({
                     onClick={() => {
                       const name = newExName.trim();
                       if (!name || !newExGroup || !newExMuscle) return;
-                      if (saveCustomExercise) saveCustomExercise(newExGroup, name);
-                      // Salva o mapeamento músculo para este exercício
-                      if (saveCustomMuscleMap) saveCustomMuscleMap({ ...customMuscleMap, [name]: newExMuscle });
-                      // Adiciona ao plano do grupo
-                      const currentPlan = (workoutPlans && workoutPlans[newExGroup]) || [];
-                      if (!currentPlan.includes(name)) saveWorkoutPlan(newExGroup, [...currentPlan, name]);
+                      if (saveCustomExercise) saveCustomExercise(newExGroup, name, newExMuscle);
                       setNewExName("");
                       setNewExGroup(null);
                       setNewExMuscle(null);
