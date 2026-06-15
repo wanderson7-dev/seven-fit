@@ -161,9 +161,15 @@ export default function Dashboard({
   const bfLost      = PROFILE.current_bf - Number(bfNow);
   const bfProg      = bfDiffTotal > 0 ? Math.min((bfLost / bfDiffTotal) * 100, 100).toFixed(0) : 100;
 
-  // ── Déficit desta semana (últimos 7 dias) ─────────────────────
   const todayStr = localDateStr();
-  const hasTrained = (state.workoutLogs || []).some((w) => w.date === todayStr);
+  const todayWorkout = (state.workoutLogs || []).find((w) => w.date === todayStr);
+  const hasTrained = !!todayWorkout;
+  const activeKcal = todayWorkout ? (todayWorkout.exercises || []).reduce((acc, ex) => {
+    if (ex.isCardio || ex.isMetadata) {
+      return acc + (ex.kcal || 0);
+    }
+    return acc;
+  }, 0) : 0;
 
   // Calorie history for the last 7 days
   const last7 = Array.from({ length: 7 }, (_, i) => {
@@ -238,7 +244,7 @@ export default function Dashboard({
           icon={Dumbbell}
           label="Treino hoje"
           value={hasTrained ? "Feito" : "Pendente"}
-          sub=""
+          sub={hasTrained ? `${activeKcal} kcal gastas` : "Nenhum gasto"}
           color="#8b5cf6"
         />
       </div>

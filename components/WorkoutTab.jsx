@@ -89,6 +89,36 @@ export default function WorkoutTab({
   const [planSearch, setPlanSearch] = useState("");
   const [showLibrary, setShowLibrary] = useState(false);
 
+  // Cardio & Gasto Calórico states
+  const [weightDuration, setWeightDuration] = useState("60");
+  const [weightKcal, setWeightKcal] = useState("360");
+  const [cardios, setCardios] = useState([]);
+  const [showCardioForm, setShowCardioForm] = useState(false);
+  const [cardioType, setCardioType] = useState("Corrida");
+  const [cardioDuration, setCardioDuration] = useState("");
+  const [cardioDistance, setCardioDistance] = useState("");
+  const [cardioKcalOverride, setCardioKcalOverride] = useState("");
+
+  const estimateCardioKcal = (type, min) => {
+    const minutes = parseFloat(min);
+    if (isNaN(minutes) || minutes <= 0) return 0;
+    const rates = {
+      "Corrida": 12.5,
+      "Caminhada": 5.0,
+      "Bicicleta": 8.0,
+      "Elíptico": 9.5,
+      "Outro": 7.0
+    };
+    const rate = rates[type] || 7.0;
+    return Math.round(minutes * rate);
+  };
+
+  const estimateWeightKcal = (min) => {
+    const minutes = parseFloat(min);
+    if (isNaN(minutes) || minutes <= 0) return 0;
+    return Math.round(minutes * 6.0);
+  };
+
   // ── helpers ─────────────────────────────────────────────────
   const setTypeIcon = (id, size = 13) => {
     if (id === "aquecimento") return <Flame size={size} />;
@@ -168,14 +198,45 @@ export default function WorkoutTab({
 
   const handleSaveWorkout = () => {
     const finalExs = sessionExs.filter((ex) => ex.sets.length > 0);
+    
+    const wDur = parseInt(weightDuration);
+    const wKcal = parseInt(weightKcal);
+    if (finalExs.length > 0 && wDur > 0) {
+      finalExs.push({
+        name: "Treino de Força (Info)",
+        isMetadata: true,
+        duration: wDur,
+        kcal: wKcal
+      });
+    }
+    
+    cardios.forEach(c => {
+      finalExs.push({
+        name: `Cardio (${c.type})`,
+        isCardio: true,
+        cardioType: c.type,
+        duration: c.duration,
+        distance: c.distance,
+        kcal: c.kcal
+      });
+    });
+
     if (!finalExs.length) return;
-    const volume = finalExs.reduce((tot, ex) =>
-      tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
+
+    const volume = finalExs
+      .filter(ex => !ex.isCardio && !ex.isMetadata)
+      .reduce((tot, ex) =>
+        tot + ex.sets.filter((x) => x.type === "valida").reduce((a, x) => a + x.weight * x.reps, 0), 0);
+
     saveSessionWorkout({ date: sessionDate, type: s.type, exercises: finalExs, notes: sessionNotes, volume });
     setSessionExs(activeGroup ? (workoutPlans[activeGroup] || []).map((n) => ({ name: n, sets: [] })) : []);
     setSessionNotes("");
     setSessionStarted(false);
     setExpandedEx(null);
+    setWeightDuration("60");
+    setWeightKcal("360");
+    setCardios([]);
+    setShowCardioForm(false);
   };
 
   const resetSession = () => {
@@ -183,6 +244,10 @@ export default function WorkoutTab({
     setSessionNotes("");
     setSessionStarted(false);
     setExpandedEx(null);
+    setWeightDuration("60");
+    setWeightKcal("360");
+    setCardios([]);
+    setShowCardioForm(false);
   };
 
   // ── handlers de plano ────────────────────────────────────────
@@ -392,8 +457,190 @@ export default function WorkoutTab({
             );
           })()}
 
+          {/* Cardio & Gasto Calórico */}
+          {(hasSets || cardios.length > 0) && (
+            <div className="card" style={{ marginTop: "14px" }}>
+              <div style={{ fontSize: "14px", fontWeight: "700", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px", color: "#f97316" }}>
+                <Flame size={16} /> Cardio & Gasto Calórico
+              </div>
+
+              {/* Musculação Info */}
+              {hasSets && (
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "14px" }}>
+                  <div style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: "4px" }}>Duração Musculação (min)</div>
+                    <input
+                      type="number"
+                      value={weightDuration}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setWeightDuration(val);
+                        setWeightKcal(estimateWeightKcal(val).toString());
+                      }}
+                      placeholder="60"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: "4px" }}>Est. Calorias Gastas (kcal)</div>
+                    <input
+                      type="number"
+                      value={weightKcal}
+                      onChange={(e) => setWeightKcal(e.target.value)}
+                      placeholder="360"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Cardios logged list */}
+              {cardios.length > 0 && (
+                <div style={{ marginBottom: "12px" }}>
+                  <div className="label" style={{ marginBottom: "6px" }}>Cardios Adicionados:</div>
+                  {cardios.map((c, idx) => (
+                    <div key={idx} className="row-sb" style={{ background: "rgba(255,255,255,0.02)", padding: "8px 12px", borderRadius: "10px", marginBottom: "6px", fontSize: "12px" }}>
+                      <span>
+                        🏃 **{c.type}** · {c.duration} min {c.distance ? `· ${c.distance} km` : ""} · ~{c.kcal} kcal
+                      </span>
+                      <button
+                        style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer" }}
+                        onClick={() => setCardios(prev => prev.filter((_, ci) => ci !== idx))}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Inline Cardio Form */}
+              {showCardioForm ? (
+                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px", padding: "12px", marginBottom: "12px" }}>
+                  <div style={{ fontWeight: "700", fontSize: "12px", marginBottom: "10px", color: "#10b981" }}>Adicionar Cardio</div>
+                  
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                    <div style={{ flex: 1 }}>
+                      <div className="label" style={{ marginBottom: "3px" }}>Tipo</div>
+                      <select
+                        value={cardioType}
+                        onChange={(e) => {
+                          setCardioType(e.target.value);
+                          const est = estimateCardioKcal(e.target.value, cardioDuration);
+                          setCardioKcalOverride(est ? est.toString() : "");
+                        }}
+                        style={{ padding: "8px", fontSize: "12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "8px", width: "100%" }}
+                      >
+                        {["Corrida", "Caminhada", "Bicicleta", "Elíptico", "Outro"].map(t => (
+                          <option key={t} value={t} style={{ background: "#0a0a0f" }}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="label" style={{ marginBottom: "3px" }}>Duração (min)</div>
+                      <input
+                        type="number"
+                        placeholder="min"
+                        value={cardioDuration}
+                        onChange={(e) => {
+                          setCardioDuration(e.target.value);
+                          const est = estimateCardioKcal(cardioType, e.target.value);
+                          setCardioKcalOverride(est ? est.toString() : "");
+                        }}
+                        style={{ padding: "8px", fontSize: "12px" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                    <div style={{ flex: 1 }}>
+                      <div className="label" style={{ marginBottom: "3px" }}>Distância (km - opcional)</div>
+                      <input
+                        type="number"
+                        placeholder="km"
+                        value={cardioDistance}
+                        onChange={(e) => setCardioDistance(e.target.value)}
+                        style={{ padding: "8px", fontSize: "12px" }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="label" style={{ marginBottom: "3px" }}>Calorias (kcal)</div>
+                      <input
+                        type="number"
+                        placeholder="kcal"
+                        value={cardioKcalOverride}
+                        onChange={(e) => setCardioKcalOverride(e.target.value)}
+                        style={{ padding: "8px", fontSize: "12px" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ flex: 1, padding: "8px" }}
+                      onClick={() => {
+                        setShowCardioForm(false);
+                        setCardioDuration("");
+                        setCardioDistance("");
+                        setCardioKcalOverride("");
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      style={{ flex: 1, padding: "8px", background: "#10b981" }}
+                      onClick={() => {
+                        const dur = parseInt(cardioDuration);
+                        if (isNaN(dur) || dur <= 0) return;
+                        
+                        const defaultEst = estimateCardioKcal(cardioType, cardioDuration);
+                        const kcalVal = parseInt(cardioKcalOverride) || defaultEst;
+                        
+                        setCardios(prev => [...prev, {
+                          type: cardioType,
+                          duration: dur,
+                          distance: parseFloat(cardioDistance) || 0,
+                          kcal: kcalVal
+                        }]);
+
+                        setShowCardioForm(false);
+                        setCardioDuration("");
+                        setCardioDistance("");
+                        setCardioKcalOverride("");
+                      }}
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="btn btn-ghost"
+                  style={{ width: "100%", padding: "10px", fontSize: "12px", border: "1px dashed rgba(255,255,255,0.1)", color: "#10b981", marginBottom: "14px", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}
+                  onClick={() => setShowCardioForm(true)}
+                >
+                  <Plus size={14} /> Adicionar Cardio
+                </button>
+              )}
+
+              {/* Resumo Gasto Calórico Total */}
+              {(() => {
+                const totalBurn = (hasSets ? parseInt(weightKcal) || 0 : 0) + cardios.reduce((acc, c) => acc + c.kcal, 0);
+                if (totalBurn > 0) {
+                  return (
+                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontWeight: "600", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px", display: "flex", justifyContent: "space-between" }}>
+                      <span>Gasto calórico total estimado:</span>
+                      <span style={{ color: "#ef4444", fontWeight: "700" }}>🔥 {totalBurn} kcal</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
+
           {/* Salvar treino */}
-          {hasSets && (
+          {(hasSets || cardios.length > 0) && (
             <div className="card">
               <textarea placeholder="Observações do treino..." value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} style={{ height: "56px", marginBottom: "10px" }} />
               <button className="btn btn-primary" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={handleSaveWorkout}>
@@ -418,25 +665,59 @@ export default function WorkoutTab({
                       <span style={{ fontWeight: "700" }}>{w.type}</span>
                       <div className="row" style={{ gap: "8px" }}>
                         <span className="small">Vol total: {w.volume}kg</span>
+                        {(() => {
+                          const totalKcal = (w.exercises || []).reduce((acc, ex) => {
+                            if (ex.isCardio || ex.isMetadata) {
+                              return acc + (ex.kcal || 0);
+                            }
+                            return acc;
+                          }, 0);
+                          if (totalKcal > 0) {
+                            return <span className="small" style={{ color: "#ef4444", fontWeight: "700" }}>🔥 {totalKcal} kcal</span>;
+                          }
+                          return null;
+                        })()}
                         <button className="btn-danger" onClick={() => removeWorkoutLog(w.id)} style={{ padding: "3px 7px", display: "flex", alignItems: "center" }}><X size={11} /></button>
                       </div>
                     </div>
-                    {(w.exercises || []).map((ex, ei) => (
-                      <div key={ei} style={{ marginBottom: "10px" }}>
-                        <div style={{ fontWeight: "600", fontSize: "13px", marginBottom: "5px" }}>{ex.name}</div>
-                        {ex.sets.map((set, si) => {
-                          const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                          return (
-                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                              <span style={{ color: ts.color, display: "flex", alignItems: "center", gap: "3px", minWidth: "80px" }}>
-                                {setTypeIcon(ts.id, 11)} {ts.label}
-                              </span>
-                              <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
+                    {(w.exercises || []).map((ex, ei) => {
+                      if (ex.isMetadata) {
+                        return (
+                          <div key={ei} style={{ marginBottom: "10px", fontSize: "12px", background: "rgba(255,255,255,0.02)", padding: "8px 12px", borderRadius: "10px" }}>
+                            <div style={{ fontWeight: "700", color: "#f97316" }}>Musculação</div>
+                            <div style={{ color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                              Duração: {ex.duration} min · Gasto: ~{ex.kcal} kcal
                             </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                          </div>
+                        );
+                      }
+                      if (ex.isCardio) {
+                        return (
+                          <div key={ei} style={{ marginBottom: "10px", fontSize: "12px", background: "rgba(255,255,255,0.02)", padding: "8px 12px", borderRadius: "10px" }}>
+                            <div style={{ fontWeight: "700", color: "#10b981" }}>Cardio ({ex.cardioType})</div>
+                            <div style={{ color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                              Duração: {ex.duration} min {ex.distance ? `· Distância: ${ex.distance} km` : ""} · Gasto: ~{ex.kcal} kcal
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={ei} style={{ marginBottom: "10px" }}>
+                          <div style={{ fontWeight: "600", fontSize: "13px", marginBottom: "5px" }}>{ex.name}</div>
+                          {ex.sets.map((set, si) => {
+                            const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                            return (
+                              <div key={si} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                <span style={{ color: ts.color, display: "flex", alignItems: "center", gap: "3px", minWidth: "80px" }}>
+                                  {setTypeIcon(ts.id, 11)} {ts.label}
+                                </span>
+                                <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
@@ -608,25 +889,61 @@ export default function WorkoutTab({
                 <div className="card" key={w.id}>
                   <div className="row-sb" style={{ marginBottom: "10px" }}>
                     <span className="syne" style={{ fontWeight: "700", fontSize: "16px" }}>{w.type}</span>
-                    <span className="small">Vol: {w.volume}kg</span>
-                  </div>
-                  {w.exercises.map((ex, eIdx) => (
-                    <div key={eIdx} style={{ background: "rgba(255,255,255,0.02)", padding: "10px 12px", borderRadius: "10px", marginBottom: "8px" }}>
-                      <div style={{ fontWeight: "600", fontSize: "13px", marginBottom: "6px" }}>{ex.name}</div>
-                      {ex.sets.map((set, sIdx) => {
-                        const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                        return (
-                          <div key={sIdx} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                            <span style={{ color: ts.color, fontWeight: "600", minWidth: "80px", display: "flex", alignItems: "center", gap: "3px" }}>
-                              {setTypeIcon(ts.id, 10)} {ts.label}
-                            </span>
-                            <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
-                            <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>= {set.weight * set.reps}kg</span>
-                          </div>
-                        );
-                      })}
+                    <div className="row" style={{ gap: "10px" }}>
+                      <span className="small">Vol: {w.volume}kg</span>
+                      {(() => {
+                        const totalKcal = (w.exercises || []).reduce((acc, ex) => {
+                          if (ex.isCardio || ex.isMetadata) {
+                            return acc + (ex.kcal || 0);
+                          }
+                          return acc;
+                        }, 0);
+                        if (totalKcal > 0) {
+                          return <span className="small" style={{ color: "#ef4444", fontWeight: "700" }}>🔥 {totalKcal} kcal</span>;
+                        }
+                        return null;
+                      })()}
                     </div>
-                  ))}
+                  </div>
+                  {(w.exercises || []).map((ex, eIdx) => {
+                    if (ex.isMetadata) {
+                      return (
+                        <div key={eIdx} style={{ background: "rgba(255,255,255,0.03)", padding: "10px 12px", borderRadius: "10px", marginBottom: "8px", fontSize: "12px" }}>
+                          <div style={{ fontWeight: "700", color: "#f97316" }}>Musculação</div>
+                          <div style={{ color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                            Duração: {ex.duration} min · Gasto: ~{ex.kcal} kcal
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (ex.isCardio) {
+                      return (
+                        <div key={eIdx} style={{ background: "rgba(255,255,255,0.03)", padding: "10px 12px", borderRadius: "10px", marginBottom: "8px", fontSize: "12px" }}>
+                          <div style={{ fontWeight: "700", color: "#10b981" }}>Cardio ({ex.cardioType})</div>
+                          <div style={{ color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                            Duração: {ex.duration} min {ex.distance ? `· Distância: ${ex.distance} km` : ""} · Gasto: ~{ex.kcal} kcal
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={eIdx} style={{ background: "rgba(255,255,255,0.02)", padding: "10px 12px", borderRadius: "10px", marginBottom: "8px" }}>
+                        <div style={{ fontWeight: "600", fontSize: "13px", marginBottom: "6px" }}>{ex.name}</div>
+                        {ex.sets.map((set, sIdx) => {
+                          const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                          return (
+                            <div key={sIdx} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <span style={{ color: ts.color, fontWeight: "600", minWidth: "80px", display: "flex", alignItems: "center", gap: "3px" }}>
+                                {setTypeIcon(ts.id, 10)} {ts.label}
+                              </span>
+                              <span style={{ fontWeight: "600" }}>{set.weight}kg × {set.reps}</span>
+                              <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>= {set.weight * set.reps}kg</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                   {w.notes && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "6px", fontStyle: "italic" }}>Obs: {w.notes}</div>}
                 </div>
               ))}

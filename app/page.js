@@ -641,10 +641,63 @@ export default function Home() {
   };
 
   const saveSessionWorkout = async (workoutSpec) => {
+    const targetDate = workoutSpec.date || today();
+    
+    // Check if there is already a workout saved for this date
+    const existing = state.workoutLogs.find(w => w.date === targetDate);
+    
+    if (existing) {
+      // Merge exercises
+      const mergedExercises = [...(existing.exercises || [])];
+      (workoutSpec.exercises || []).forEach(newEx => {
+        if (newEx.isMetadata) {
+          const metaIdx = mergedExercises.findIndex(e => e.isMetadata);
+          if (metaIdx > -1) {
+            mergedExercises[metaIdx] = {
+              ...mergedExercises[metaIdx],
+              duration: (mergedExercises[metaIdx].duration || 0) + (newEx.duration || 0),
+              kcal: (mergedExercises[metaIdx].kcal || 0) + (newEx.kcal || 0)
+            };
+          } else {
+            mergedExercises.push(newEx);
+          }
+        } else if (newEx.isCardio) {
+          mergedExercises.push(newEx);
+        } else {
+          const exIdx = mergedExercises.findIndex(e => e.name === newEx.name);
+          if (exIdx > -1) {
+            mergedExercises[exIdx] = {
+              ...mergedExercises[exIdx],
+              sets: [...(mergedExercises[exIdx].sets || []), ...(newEx.sets || [])]
+            };
+          } else {
+            mergedExercises.push(newEx);
+          }
+        }
+      });
+      
+      const newVolume = (existing.volume || 0) + (workoutSpec.volume || 0);
+      
+      let newNotes = existing.notes || "";
+      if (workoutSpec.notes) {
+        newNotes = newNotes ? `${newNotes}\n${workoutSpec.notes}` : workoutSpec.notes;
+      }
+      
+      const mergedWorkout = {
+        ...existing,
+        exercises: mergedExercises,
+        notes: newNotes,
+        volume: newVolume
+      };
+      
+      await updateSessionWorkout(existing.id, mergedWorkout);
+      return existing.id;
+    }
+
     const localId = Date.now();
     const newWorkout = {
       id: localId,
-      date: workoutSpec.date || today(),
+      date: targetDate,
       type: workoutSpec.type,
       exercises: workoutSpec.exercises,
       notes: workoutSpec.notes || "",
