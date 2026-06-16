@@ -13,6 +13,7 @@ const MUSCLE_SUBGROUPS = {
   Pull: {
     "Costas":  ["Puxada Frente","Puxada Neutra","Puxada Fechada","Barra Fixa","Pullover","Remada Curvada","Remada Unilateral","Remada Cavalinho","Remada Sentado","Serrote"],
     "Bíceps":  ["Rosca Direta","Rosca Martelo","Rosca Concentrada","Rosca 21","Rosca Inversa","Rosca Scott"],
+    "Posterior de Ombro": ["Crucifixo Invertido com Halteres", "Crucifixo Invertido na Máquina", "Face Pull"],
   },
   Legs: {
     "Quadríceps": ["Agachamento Livre","Agachamento Smith","Agachamento Sumô","Leg Press","Hack Squat","Cadeira Extensora","Avanço","Avanço com Barra","Agachamento Búlgaro"],
@@ -254,8 +255,8 @@ export default function WorkoutTab({
   const planExercises = (workoutPlans && workoutPlans[planGroup]) || [];
   const libraryExs = (DEFAULT_EXERCISES && DEFAULT_EXERCISES[planGroup]) || [];
   const allForGroup = getExercises ? getExercises(planGroup) : libraryExs;
-  const filteredLib = exSearch
-    ? allForGroup.filter((e) => e.toLowerCase().includes(exSearch.toLowerCase()))
+  const filteredLib = planSearch
+    ? allForGroup.filter((e) => e.toLowerCase().includes(planSearch.toLowerCase()))
     : allForGroup;
 
   const addToPlan = (name) => {
@@ -793,24 +794,44 @@ export default function WorkoutTab({
                     })
                   ) : (
                     // Agrupado por músculo quando sem filtro
-                    Object.entries(MUSCLE_SUBGROUPS[planGroup] || {}).map(([muscle, musclExs]) => {
-                      const available = allForGroup.filter((e) => musclExs.includes(e));
-                      if (!available.length) return null;
-                      return (
-                        <div key={muscle} style={{ marginBottom: "12px" }}>
-                          <div style={{ fontSize: "10px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px", paddingLeft: "2px" }}>{muscle}</div>
-                          {available.map((name) => {
-                            const inPlan = planExercises.includes(name);
-                            return (
-                              <div key={name} onClick={() => !inPlan && addToPlan(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: inPlan ? "default" : "pointer", marginBottom: "2px", background: inPlan ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)", opacity: inPlan ? 0.6 : 1 }}>
-                                <span style={{ fontSize: "13px" }}>{name}</span>
-                                {inPlan ? <CheckCircle2 size={13} style={{ color: "#10b981" }} /> : <Plus size={13} style={{ color: "#f97316" }} />}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })
+                    <>
+                      {Object.entries(MUSCLE_SUBGROUPS[planGroup] || {}).map(([muscle, musclExs]) => {
+                        const available = allForGroup.filter((e) => getMuscle(planGroup, e, customMuscleMap) === muscle);
+                        if (!available.length) return null;
+                        return (
+                          <div key={muscle} style={{ marginBottom: "12px" }}>
+                            <div style={{ fontSize: "10px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px", paddingLeft: "2px" }}>{muscle}</div>
+                            {available.map((name) => {
+                              const inPlan = planExercises.includes(name);
+                              return (
+                                <div key={name} onClick={() => !inPlan && addToPlan(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: inPlan ? "default" : "pointer", marginBottom: "2px", background: inPlan ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)", opacity: inPlan ? 0.6 : 1 }}>
+                                  <span style={{ fontSize: "13px" }}>{name}</span>
+                                  {inPlan ? <CheckCircle2 size={13} style={{ color: "#10b981" }} /> : <Plus size={13} style={{ color: "#f97316" }} />}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                      {(() => {
+                        const outros = allForGroup.filter((e) => getMuscle(planGroup, e, customMuscleMap) === "Outros");
+                        if (!outros.length) return null;
+                        return (
+                          <div key="Outros" style={{ marginBottom: "12px" }}>
+                            <div style={{ fontSize: "10px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px", paddingLeft: "2px" }}>Outros</div>
+                            {outros.map((name) => {
+                              const inPlan = planExercises.includes(name);
+                              return (
+                                <div key={name} onClick={() => !inPlan && addToPlan(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: "10px", cursor: inPlan ? "default" : "pointer", marginBottom: "2px", background: inPlan ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)", opacity: inPlan ? 0.6 : 1 }}>
+                                  <span style={{ fontSize: "13px" }}>{name}</span>
+                                  {inPlan ? <CheckCircle2 size={13} style={{ color: "#10b981" }} /> : <Plus size={13} style={{ color: "#f97316" }} />}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </>
                   )}
                 </div>
 

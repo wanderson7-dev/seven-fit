@@ -50,11 +50,12 @@ const DEFAULT_EXERCISES = {
     "Desenvolvimento com Barra", "Desenvolvimento com Halteres", "Elevação Lateral", "Elevação Frontal", "Encolhimento", "Face Pull",
     "Tríceps Corda", "Tríceps Testa", "Tríceps Francês", "Tríceps Banco", "Mergulho", "Extensão Tríceps"
   ],
-  // PULL — Costas + Bíceps
+  // PULL — Costas + Bíceps + Posterior de Ombro
   Pull: [
     "Puxada Frente", "Puxada Neutra", "Puxada Fechada", "Barra Fixa", "Pullover",
     "Remada Curvada", "Remada Unilateral", "Remada Cavalinho", "Remada Sentado", "Serrote",
-    "Rosca Direta", "Rosca Martelo", "Rosca Concentrada", "Rosca 21", "Rosca Inversa", "Rosca Scott"
+    "Rosca Direta", "Rosca Martelo", "Rosca Concentrada", "Rosca 21", "Rosca Inversa", "Rosca Scott",
+    "Crucifixo Invertido com Halteres", "Crucifixo Invertido na Máquina", "Face Pull"
   ],
   // LEGS — Pernas completo
   Legs: [
@@ -949,17 +950,10 @@ export default function Home() {
       updatedCustomMuscleMap[name] = muscle;
     }
 
-    const currentPlan = (state.workoutPlans && state.workoutPlans[group]) || [];
-    const updatedWorkoutPlans = {
-      ...state.workoutPlans,
-      [group]: currentPlan.includes(name) ? currentPlan : [...currentPlan, name]
-    };
-
     const updated = {
       ...state,
       customExercises: updatedCustomExs,
-      customMuscleMap: updatedCustomMuscleMap,
-      workoutPlans: updatedWorkoutPlans
+      customMuscleMap: updatedCustomMuscleMap
     };
     saveState(updated);
 
