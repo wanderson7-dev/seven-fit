@@ -300,17 +300,136 @@ export default function Home() {
     };
   };
 
+  const syncUnsyncedDataToCloud = async (userId, currentState, cloudData = null) => {
+    try {
+      const dbData = cloudData || await db.fetchUserData(userId) || {};
+      const syncedState = { ...currentState };
+      
+      // 1. Sync Workout Logs
+      const localUnsyncedWorkouts = (syncedState.workoutLogs || []).filter(w => typeof w.id === 'number');
+      if (localUnsyncedWorkouts.length > 0) {
+        const updatedWorkoutLogs = [...syncedState.workoutLogs];
+        for (const w of localUnsyncedWorkouts) {
+          try {
+            const savedWorkout = await db.addWorkoutLog(userId, w);
+            if (savedWorkout && savedWorkout.id) {
+              const idx = updatedWorkoutLogs.findIndex(item => item.id === w.id);
+              if (idx > -1) {
+                updatedWorkoutLogs[idx] = {
+                  ...updatedWorkoutLogs[idx],
+                  id: savedWorkout.id
+                };
+              }
+            }
+          } catch (err) {
+            console.error("Error syncing workout log:", err);
+          }
+        }
+        syncedState.workoutLogs = updatedWorkoutLogs;
+      }
+
+      // 2. Sync Food Logs
+      const localUnsyncedFood = (syncedState.foodLogs || []).filter(f => typeof f.id === 'number');
+      if (localUnsyncedFood.length > 0) {
+        const updatedFoodLogs = [...syncedState.foodLogs];
+        for (const f of localUnsyncedFood) {
+          try {
+            const savedFood = await db.addFoodLog(userId, f);
+            if (savedFood && savedFood.id) {
+              const idx = updatedFoodLogs.findIndex(item => item.id === f.id);
+              if (idx > -1) {
+                updatedFoodLogs[idx] = {
+                  ...updatedFoodLogs[idx],
+                  id: savedFood.id
+                };
+              }
+            }
+          } catch (err) {
+            console.error("Error syncing food log:", err);
+          }
+        }
+        syncedState.foodLogs = updatedFoodLogs;
+      }
+
+      // 3. Sync Weight Logs
+      const localUnsyncedWeight = (syncedState.weightLogs || []).filter(w => typeof w.id === 'number');
+      if (localUnsyncedWeight.length > 0) {
+        const updatedWeightLogs = [...syncedState.weightLogs];
+        for (const w of localUnsyncedWeight) {
+          try {
+            const savedWeight = await db.addWeightLog(userId, w);
+            if (savedWeight && savedWeight.id) {
+              const idx = updatedWeightLogs.findIndex(item => item.id === w.id);
+              if (idx > -1) {
+                updatedWeightLogs[idx] = {
+                  ...updatedWeightLogs[idx],
+                  id: savedWeight.id
+                };
+              }
+            }
+          } catch (err) {
+            console.error("Error syncing weight log:", err);
+          }
+        }
+        syncedState.weightLogs = updatedWeightLogs;
+      }
+
+      // 4. Sync Custom Foods
+      const cloudFoodNames = new Set((dbData.customFoods || []).map(f => f.name.toLowerCase()));
+      const localUnsyncedCustomFoods = (syncedState.customFoods || []).filter(f => !cloudFoodNames.has(f.name.toLowerCase()));
+      if (localUnsyncedCustomFoods.length > 0) {
+        for (const f of localUnsyncedCustomFoods) {
+          try {
+            await db.addCustomFood(userId, f);
+          } catch (err) {
+            console.error("Error syncing custom food:", err);
+          }
+        }
+      }
+
+      // 5. Sync Custom Exercises
+      const cloudExercises = dbData.customExercises || {};
+      const localCustomExercises = syncedState.customExercises || {};
+      for (const [group, names] of Object.entries(localCustomExercises)) {
+        const cloudNamesForGroup = new Set((cloudExercises[group] || []).map(n => n.toLowerCase()));
+        const unsyncedNames = names.filter(n => !cloudNamesForGroup.has(n.toLowerCase()));
+        for (const name of unsyncedNames) {
+          try {
+            await db.addCustomExercise(userId, group, name);
+          } catch (err) {
+            console.error("Error syncing custom exercise:", err);
+          }
+        }
+      }
+
+      return syncedState;
+    } catch (e) {
+      console.error("Failed syncUnsyncedDataToCloud:", e);
+      return currentState;
+    }
+  };
+
   const handleUserSignIn = async (currUser) => {
     setIsSyncing(true);
     setSyncError(null);
     try {
       const dbData = await db.fetchUserData(currUser.id);
       if (dbData) {
+        let merged;
         setState((prev) => {
-          const newState = mergeLocalAndCloudState(prev, dbData);
-          cacheToLocal(newState);
-          return newState;
+          merged = mergeLocalAndCloudState(prev, dbData);
+          cacheToLocal(merged);
+          return merged;
         });
+
+        // Trigger background sync
+        try {
+          const syncedState = await syncUnsyncedDataToCloud(currUser.id, merged, dbData);
+          setState(syncedState);
+          cacheToLocal(syncedState);
+        } catch (syncErr) {
+          console.error("Failed background sync:", syncErr);
+        }
       } else {
         const currentLocal = loadLocalState();
         if (currentLocal) {
@@ -529,6 +648,11 @@ export default function Home() {
               weightLogs: prev.weightLogs.map(w => w.id === localId ? { ...w, id: savedLog.id } : w)
             };
             cacheToLocal(newState);
+            // Background sync
+            syncUnsyncedDataToCloud(user.id, newState).then(syncedState => {
+              setState(syncedState);
+              cacheToLocal(syncedState);
+            }).catch(err => console.error("Error in post-save weight sync:", err));
             return newState;
           });
         }
@@ -616,6 +740,11 @@ export default function Home() {
               } : l)
             };
             cacheToLocal(newState);
+            // Background sync
+            syncUnsyncedDataToCloud(user.id, newState).then(syncedState => {
+              setState(syncedState);
+              cacheToLocal(syncedState);
+            }).catch(err => console.error("Error in post-save food sync:", err));
             return newState;
           });
         }
@@ -724,6 +853,11 @@ export default function Home() {
               } : w)
             };
             cacheToLocal(newState);
+            // Background sync
+            syncUnsyncedDataToCloud(user.id, newState).then(syncedState => {
+              setState(syncedState);
+              cacheToLocal(syncedState);
+            }).catch(err => console.error("Error in post-save workout sync:", err));
             return newState;
           });
           return savedWorkout.id;
@@ -748,20 +882,32 @@ export default function Home() {
       volume: workoutSpec.volume,
     };
 
-    setState(prev => ({
-      ...prev,
-      workoutLogs: prev.workoutLogs.map(w => w.id === logId ? updatedWorkout : w),
-    }));
-    // Atualiza localStorage também
-    const newState = {
-      ...state,
-      workoutLogs: state.workoutLogs.map(w => w.id === logId ? updatedWorkout : w),
-    };
-    try { localStorage.setItem("co_workoutLogs", JSON.stringify(newState.workoutLogs)); } catch {}
+    setState(prev => {
+      const newState = {
+        ...prev,
+        workoutLogs: prev.workoutLogs.map(w => w.id === logId ? updatedWorkout : w),
+      };
+      cacheToLocal(newState);
+      return newState;
+    });
 
     if (user) {
       try {
-        await db.updateWorkoutLog(user.id, logId, updatedWorkout);
+        if (typeof logId === 'number') {
+          const savedWorkout = await db.addWorkoutLog(user.id, updatedWorkout);
+          if (savedWorkout && savedWorkout.id) {
+            setState(prev => {
+              const newState = {
+                ...prev,
+                workoutLogs: prev.workoutLogs.map(w => w.id === logId ? { ...w, id: savedWorkout.id } : w)
+              };
+              cacheToLocal(newState);
+              return newState;
+            });
+          }
+        } else {
+          await db.updateWorkoutLog(user.id, logId, updatedWorkout);
+        }
       } catch (err) {
         console.error("Failed to update workout in cloud:", err);
       }
