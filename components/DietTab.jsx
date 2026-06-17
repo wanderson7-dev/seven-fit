@@ -42,6 +42,7 @@ export default function DietTab({
   const MEALS = ["Café da Manhã", "Almoço", "Jantar", "Lanches"];
 
   const [activeSubTab, setActiveSubTab] = useState("log");
+  const [foodsTab, setFoodsTab] = useState("meus");
   const [foodSearch, setFoodSearch] = useState("");
   const [selectedFood, setSelectedFood] = useState(null);
   const [foodQty, setFoodQty] = useState("100");

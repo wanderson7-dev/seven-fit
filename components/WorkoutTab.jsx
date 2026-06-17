@@ -177,6 +177,21 @@ export default function WorkoutTab({
     }
   }, []);
 
+  // Adjust default duration and kcal based on whether a workout is already saved for this date
+  useEffect(() => {
+    if (!isSessionLoaded) return;
+    if (!sessionStarted && state.workoutLogs) {
+      const existing = state.workoutLogs.find(w => w.date === sessionDate);
+      if (existing) {
+        setWeightDuration("0");
+        setWeightKcal("0");
+      } else {
+        setWeightDuration("60");
+        setWeightKcal("360");
+      }
+    }
+  }, [isSessionLoaded, sessionDate, state.workoutLogs, sessionStarted]);
+
   // Save active session to localStorage on change
   useEffect(() => {
     if (!isSessionLoaded) return;
@@ -524,7 +539,7 @@ export default function WorkoutTab({
           })()}
 
           {/* Cardio & Gasto Calórico */}
-          {(hasSets || cardios.length > 0) && (
+          {activeGroup && (
             <div className="card" style={{ marginTop: "14px" }}>
               <div style={{ fontSize: "14px", fontWeight: "700", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px", color: "#f97316" }}>
                 <Flame size={16} /> Cardio & Gasto Calórico
