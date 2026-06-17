@@ -67,16 +67,20 @@ export default function ProgressTab({
   }, 0);
 
   // BF estimado: combina déficit calórico + variação de peso (mesmo método do Dashboard)
-  const fatKgByDeficit = cumDeficit / 7700;
+  const fatKgByDeficit = Math.max(0, cumDeficit / 7700);
   const fatKgByScale   = lost * 0.72;
-  const hasWeightHistory = wl.length >= 2;
+  const hasWeightHistory = wl.length >= 1;
   const fatKgLost = loggedDates.length > 0 && hasWeightHistory
     ? (fatKgByDeficit * 0.6 + fatKgByScale * 0.4)
     : loggedDates.length > 0 ? fatKgByDeficit : fatKgByScale;
 
   const initialFatKg = firstW * (PROFILE.current_bf / 100);
   const currentFatKg = Math.max(0, initialFatKg - Math.max(0, fatKgLost));
-  const bfNow = Math.max(PROFILE.goal_bf, (currentFatKg / lastW) * 100).toFixed(1);
+  const calculatedBf = (currentFatKg / lastW) * 100;
+  const bfNow = Math.max(
+    PROFILE.goal_bf,
+    lastW < firstW ? Math.min(PROFILE.current_bf, calculatedBf) : calculatedBf
+  ).toFixed(1);
 
   // Kg de gordura restante até a meta e previsão de semanas
   const kgToGoal = Math.max(0, currentFatKg - lastW * (PROFILE.goal_bf / 100)).toFixed(1);

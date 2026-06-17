@@ -141,9 +141,9 @@ export default function Dashboard({
 
   // ── BF estimado (método do vídeo: 7.700 kcal = 1kg gordura) ──
   // Combina déficit calórico (se há logs) com variação real de peso (se há logs de peso)
-  const fatKgByDeficit = cumulativeDeficit / 7700;
+  const fatKgByDeficit = Math.max(0, cumulativeDeficit / 7700);
   const fatKgByScale   = lost * 0.72; // 72% da perda na balança é gordura (estimativa conservadora)
-  const hasWeightHistory = wl.length >= 2;
+  const hasWeightHistory = wl.length >= 1;
   const fatKgLost = loggedDates.length > 0 && hasWeightHistory
     ? (fatKgByDeficit * 0.6 + fatKgByScale * 0.4)  // média ponderada dos dois métodos
     : loggedDates.length > 0
@@ -152,9 +152,10 @@ export default function Dashboard({
 
   const initialFatKg  = firstW * (PROFILE.current_bf / 100);
   const currentFatKg  = Math.max(0, initialFatKg - Math.max(0, fatKgLost));
+  const calculatedBf = (currentFatKg / lastW) * 100;
   const bfNow = Math.max(
     PROFILE.goal_bf,
-    (currentFatKg / lastW) * 100
+    lastW < firstW ? Math.min(PROFILE.current_bf, calculatedBf) : calculatedBf
   ).toFixed(1);
 
   const bfDiffTotal = PROFILE.current_bf - PROFILE.goal_bf;
