@@ -72,6 +72,7 @@ export default function WorkoutTab({
   const [sessionExs, setSessionExs] = useState([]); // [{name, sets:[{type,weight,reps}]}]
   const [sessionNotes, setSessionNotes] = useState("");
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   const [expandedEx, setExpandedEx] = useState(null); // índice do card aberto
   const [serieType, setSerieType] = useState("valida");
@@ -145,6 +146,67 @@ export default function WorkoutTab({
     }
   }, [activeGroup, sessionStarted]);
 
+  // Load active session from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedStarted = localStorage.getItem("co_active_sessionStarted");
+        if (savedStarted === "true") {
+          const savedExs = localStorage.getItem("co_active_sessionExs");
+          const savedNotes = localStorage.getItem("co_active_sessionNotes");
+          const savedDur = localStorage.getItem("co_active_weightDuration");
+          const savedKcal = localStorage.getItem("co_active_weightKcal");
+          const savedCardios = localStorage.getItem("co_active_cardios");
+          const savedDate = localStorage.getItem("co_active_sessionDate");
+          const savedGroup = localStorage.getItem("co_active_selectedGroup");
+
+          if (savedDate) setSessionDate(savedDate);
+          if (savedGroup) setSelectedGroup(savedGroup);
+          if (savedExs) setSessionExs(JSON.parse(savedExs));
+          if (savedNotes) setSessionNotes(savedNotes);
+          if (savedDur) setWeightDuration(savedDur);
+          if (savedKcal) setWeightKcal(savedKcal);
+          if (savedCardios) setCardios(JSON.parse(savedCardios));
+          setSessionStarted(true);
+        }
+      } catch (e) {
+        console.error("Failed to load active session from localStorage:", e);
+      } finally {
+        setIsSessionLoaded(true);
+      }
+    }
+  }, []);
+
+  // Save active session to localStorage on change
+  useEffect(() => {
+    if (!isSessionLoaded) return;
+    if (typeof window !== "undefined") {
+      if (sessionStarted) {
+        localStorage.setItem("co_active_sessionStarted", "true");
+        localStorage.setItem("co_active_sessionExs", JSON.stringify(sessionExs));
+        localStorage.setItem("co_active_sessionNotes", sessionNotes);
+        localStorage.setItem("co_active_weightDuration", weightDuration);
+        localStorage.setItem("co_active_weightKcal", weightKcal);
+        localStorage.setItem("co_active_cardios", JSON.stringify(cardios));
+        localStorage.setItem("co_active_sessionDate", sessionDate);
+        if (selectedGroup) {
+          localStorage.setItem("co_active_selectedGroup", selectedGroup);
+        } else {
+          localStorage.removeItem("co_active_selectedGroup");
+        }
+      } else {
+        localStorage.removeItem("co_active_sessionStarted");
+        localStorage.removeItem("co_active_sessionExs");
+        localStorage.removeItem("co_active_sessionNotes");
+        localStorage.removeItem("co_active_weightDuration");
+        localStorage.removeItem("co_active_weightKcal");
+        localStorage.removeItem("co_active_cardios");
+        localStorage.removeItem("co_active_sessionDate");
+        localStorage.removeItem("co_active_selectedGroup");
+      }
+    }
+  }, [isSessionLoaded, sessionStarted, sessionExs, sessionNotes, weightDuration, weightKcal, cardios, sessionDate, selectedGroup]);
+
   // Performance anterior
   const getPrevPerf = (exName) => {
     const logs = state.workoutLogs || [];
@@ -177,6 +239,7 @@ export default function WorkoutTab({
   };
 
   const handleRemoveSet = (exIdx, setIdx) => {
+    setSessionStarted(true);
     setSessionExs((prev) =>
       prev.map((ex, i) =>
         i === exIdx ? { ...ex, sets: ex.sets.filter((_, si) => si !== setIdx) } : ex
@@ -186,6 +249,7 @@ export default function WorkoutTab({
 
   const handleRemoveEx = (exIdx) => {
     setSessionExs((prev) => prev.filter((_, i) => i !== exIdx));
+    setSessionStarted(true);
     if (expandedEx === exIdx) setExpandedEx(null);
     else if (expandedEx > exIdx) setExpandedEx((p) => p - 1);
   };
@@ -193,6 +257,7 @@ export default function WorkoutTab({
   const handleAddExToSession = (name) => {
     if (sessionExs.some((e) => e.name === name)) return;
     setSessionExs((prev) => [...prev, { name, sets: [] }]);
+    setSessionStarted(true);
     setShowAddEx(false);
     setExSearch("");
   };
@@ -477,6 +542,7 @@ export default function WorkoutTab({
                         const val = e.target.value;
                         setWeightDuration(val);
                         setWeightKcal(estimateWeightKcal(val).toString());
+                        setSessionStarted(true);
                       }}
                       placeholder="60"
                     />
@@ -486,7 +552,10 @@ export default function WorkoutTab({
                     <input
                       type="number"
                       value={weightKcal}
-                      onChange={(e) => setWeightKcal(e.target.value)}
+                      onChange={(e) => {
+                        setWeightKcal(e.target.value);
+                        setSessionStarted(true);
+                      }}
                       placeholder="360"
                     />
                   </div>
@@ -604,6 +673,7 @@ export default function WorkoutTab({
                           kcal: kcalVal
                         }]);
 
+                        setSessionStarted(true);
                         setShowCardioForm(false);
                         setCardioDuration("");
                         setCardioDistance("");
@@ -643,10 +713,31 @@ export default function WorkoutTab({
           {/* Salvar treino */}
           {(hasSets || cardios.length > 0) && (
             <div className="card">
-              <textarea placeholder="Observações do treino..." value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} style={{ height: "56px", marginBottom: "10px" }} />
-              <button className="btn btn-primary" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={handleSaveWorkout}>
-                <Save size={15} /> Salvar Treino
-              </button>
+              <textarea
+                placeholder="Observações do treino..."
+                value={sessionNotes}
+                onChange={(e) => {
+                  setSessionNotes(e.target.value);
+                  setSessionStarted(true);
+                }}
+                style={{ height: "56px", marginBottom: "10px" }}
+              />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  className="btn btn-ghost"
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", color: "#f87171", borderColor: "rgba(239, 68, 68, 0.3)" }}
+                  onClick={resetSession}
+                >
+                  Limpar
+                </button>
+                <button
+                  className="btn btn-primary"
+                  style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                  onClick={handleSaveWorkout}
+                >
+                  <Save size={15} /> Salvar Treino
+                </button>
+              </div>
             </div>
           )}
 
