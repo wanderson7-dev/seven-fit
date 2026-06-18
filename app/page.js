@@ -169,18 +169,18 @@ export default function Home() {
       const workoutPlansRaw = localStorage.getItem("co_workoutPlans");
       const customMuscleMapRaw = localStorage.getItem("co_customMuscleMap");
       return {
-        foodLogs: foodLogs ? JSON.parse(foodLogs) : [],
-        workoutLogs: workoutLogs ? JSON.parse(workoutLogs) : [],
-        weightLogs: weightLogs ? JSON.parse(weightLogs) : [],
-        customFoods: customFoods ? JSON.parse(customFoods) : [],
-        customExercises: customExercises ? JSON.parse(customExercises) : {},
-        customMuscleMap: customMuscleMapRaw ? JSON.parse(customMuscleMapRaw) : {},
-        workoutPlans: workoutPlansRaw ? JSON.parse(workoutPlansRaw) : DEFAULT_WORKOUT_PLANS,
+        foodLogs: (foodLogs && JSON.parse(foodLogs)) || [],
+        workoutLogs: (workoutLogs && JSON.parse(workoutLogs)) || [],
+        weightLogs: (weightLogs && JSON.parse(weightLogs)) || [],
+        customFoods: (customFoods && JSON.parse(customFoods)) || [],
+        customExercises: (customExercises && JSON.parse(customExercises)) || {},
+        customMuscleMap: (customMuscleMapRaw && JSON.parse(customMuscleMapRaw)) || {},
+        workoutPlans: (workoutPlansRaw && JSON.parse(workoutPlansRaw)) || DEFAULT_WORKOUT_PLANS,
         schedule: (parsedSchedule && parsedSchedule.length === 7) ? parsedSchedule : DEFAULT_SCHEDULE,
-        progressPhotos: progressPhotos ? JSON.parse(progressPhotos) : [],
+        progressPhotos: (progressPhotos && JSON.parse(progressPhotos)) || [],
         selectedFood: null,
-        profile: parsedProfile ? parsedProfile : DEFAULT_PROFILE,
-        mealPlan: parsedMealPlan ? parsedMealPlan : DEFAULT_MEAL_PLAN,
+        profile: parsedProfile || DEFAULT_PROFILE,
+        mealPlan: parsedMealPlan || DEFAULT_MEAL_PLAN,
       };
     } catch (error) {
       console.error("Error loading localStorage state:", error);
@@ -513,7 +513,9 @@ export default function Home() {
   };
 
   const todaySched = () => {
-    return state.schedule.find((s) => s.day === getDOW()) || state.schedule[6];
+    console.log("DEBUG: state is", state);
+    console.log("DEBUG: state.schedule is", state ? state.schedule : "state_is_null");
+    return (state.schedule || DEFAULT_SCHEDULE).find((s) => s.day === getDOW()) || (state.schedule || DEFAULT_SCHEDULE)[6];
   };
 
   // ── DYNAMIC METABOLIC CALCULATION UTILS ─────────────────────────────────────
@@ -592,7 +594,7 @@ export default function Home() {
   };
 
   const todayFoodLogs = () => {
-    return state.foodLogs.filter((l) => l.date === today());
+    return (state.foodLogs || []).filter((l) => l.date === today());
   };
 
   const getTotals = (logs) => {
@@ -614,7 +616,7 @@ export default function Home() {
   };
 
   const allFoods = () => {
-    return [...DEFAULT_FOODS, ...state.customFoods];
+    return [...DEFAULT_FOODS, ...(state.customFoods || [])];
   };
 
   const getExercises = (group) => {
@@ -622,7 +624,7 @@ export default function Home() {
     return [
       ...new Set([
         ...(DEFAULT_EXERCISES[group] || []),
-        ...(state.customExercises[group] || []),
+        ...((state.customExercises && state.customExercises[group]) || []),
       ]),
     ];
   };
@@ -634,7 +636,7 @@ export default function Home() {
     
     const updated = {
       ...state,
-      weightLogs: [...state.weightLogs, logObj],
+      weightLogs: [...(state.weightLogs || []), logObj],
     };
     saveState(updated);
 
@@ -645,7 +647,7 @@ export default function Home() {
           setState(prev => {
             const newState = {
               ...prev,
-              weightLogs: prev.weightLogs.map(w => w.id === localId ? { ...w, id: savedLog.id } : w)
+              weightLogs: (prev.weightLogs || []).map(w => w.id === localId ? { ...w, id: savedLog.id } : w)
             };
             cacheToLocal(newState);
             // Background sync
@@ -676,7 +678,7 @@ export default function Home() {
     
     const updated = {
       ...state,
-      customFoods: [...state.customFoods, newFood],
+      customFoods: [...(state.customFoods || []), newFood],
     };
     saveState(updated);
 
@@ -687,7 +689,7 @@ export default function Home() {
           setState(prev => {
             const newState = {
               ...prev,
-              customFoods: prev.customFoods.map(f => f.id === localId ? { ...f, id: savedFood.id } : f)
+              customFoods: (prev.customFoods || []).map(f => f.id === localId ? { ...f, id: savedFood.id } : f)
             };
             cacheToLocal(newState);
             return newState;
@@ -716,7 +718,7 @@ export default function Home() {
     
     const updated = {
       ...state,
-      foodLogs: [...state.foodLogs, newLog],
+      foodLogs: [...(state.foodLogs || []), newLog],
       selectedFood: null,
     };
     saveState(updated);
@@ -728,7 +730,7 @@ export default function Home() {
           setState(prev => {
             const newState = {
               ...prev,
-              foodLogs: prev.foodLogs.map(l => l.id === localId ? {
+              foodLogs: (prev.foodLogs || []).map(l => l.id === localId ? {
                 ...l,
                 id: savedLog.id,
                 foodName: savedLog.food_name,
@@ -757,7 +759,7 @@ export default function Home() {
   const removeFoodLog = async (id) => {
     const updated = {
       ...state,
-      foodLogs: state.foodLogs.filter((l) => l.id !== id),
+      foodLogs: (state.foodLogs || []).filter((l) => l.id !== id),
     };
     saveState(updated);
 
@@ -774,7 +776,7 @@ export default function Home() {
     const targetDate = workoutSpec.date || today();
     
     // Check if there is already a workout saved for this date
-    const existing = state.workoutLogs.find(w => w.date === targetDate);
+    const existing = (state.workoutLogs || []).find(w => w.date === targetDate);
     
     if (existing) {
       // Merge exercises
@@ -836,7 +838,7 @@ export default function Home() {
 
     const updated = {
       ...state,
-      workoutLogs: [...state.workoutLogs, newWorkout],
+      workoutLogs: [...(state.workoutLogs || []), newWorkout],
     };
     saveState(updated);
 
@@ -917,7 +919,7 @@ export default function Home() {
   const removeWorkoutLog = async (id) => {
     const updated = {
       ...state,
-      workoutLogs: state.workoutLogs.filter((w) => w.id !== id),
+      workoutLogs: (state.workoutLogs || []).filter((w) => w.id !== id),
     };
     saveState(updated);
 
@@ -941,7 +943,7 @@ export default function Home() {
     
     const updated = {
       ...state,
-      progressPhotos: [...state.progressPhotos, localRecord],
+      progressPhotos: [...(state.progressPhotos || []), localRecord],
     };
     saveState(updated);
 
@@ -967,7 +969,7 @@ export default function Home() {
           setState(prev => {
             const newState = {
               ...prev,
-              progressPhotos: prev.progressPhotos.map(p => p.id === localId ? {
+              progressPhotos: (prev.progressPhotos || []).map(p => p.id === localId ? {
                 ...p,
                 id: savedPhoto.id,
                 images: savedPhoto.image_urls
