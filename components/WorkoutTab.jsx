@@ -182,15 +182,16 @@ export default function WorkoutTab({
     if (!isSessionLoaded) return;
     if (!sessionStarted && state.workoutLogs) {
       const existing = state.workoutLogs.find(w => w.date === sessionDate);
-      if (existing) {
-        setWeightDuration("0");
-        setWeightKcal("0");
-      } else {
-        setWeightDuration("60");
-        setWeightKcal("360");
+      const targetDuration = existing ? "0" : "60";
+      const targetKcal = existing ? "0" : "360";
+      if (weightDuration !== targetDuration) {
+        setWeightDuration(targetDuration);
+      }
+      if (weightKcal !== targetKcal) {
+        setWeightKcal(targetKcal);
       }
     }
-  }, [isSessionLoaded, sessionDate, state.workoutLogs, sessionStarted]);
+  }, [isSessionLoaded, sessionDate, state.workoutLogs, sessionStarted, weightDuration, weightKcal]);
 
   // Save active session to localStorage on change
   useEffect(() => {
