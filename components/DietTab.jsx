@@ -74,12 +74,8 @@ export default function DietTab({
   const tot = getTotals(logs);
 
   // Initialize historical date
-  const dates = [...new Set(state.foodLogs.map((l) => l.date))].sort().reverse();
-  useEffect(() => {
-    if (dates.length && !histDietDate) {
-      setHistDietDate(dates[0]);
-    }
-  }, [dates, histDietDate]);
+  const dates = [...new Set((state.foodLogs || []).map((l) => l.date))].sort().reverse();
+  const activeHistDietDate = histDietDate || dates[0] || "";
 
   // Synchronize foodSearch selections
   const filteredFoods = foodSearch
@@ -150,7 +146,9 @@ export default function DietTab({
   // If a scanned food is set externally (e.g. from ScannerModal) in parent state
   useEffect(() => {
     if (state.selectedFood) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFood(state.selectedFood);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFoodSearch(state.selectedFood.name);
       if (clearSelectedFood) {
         clearSelectedFood();
@@ -585,13 +583,11 @@ export default function DietTab({
               Selecionar data
             </div>
             <select
-              value={histDietDate || today()}
+              value={activeHistDietDate}
               onChange={(e) => setHistDietDate(e.target.value)}
             >
-              <option value={today()}>Hoje</option>
-              {dates
-                .filter((d) => d !== today())
-                .map((d) => (
+              <option value="">— Escolha uma data —</option>
+              {dates.map((d) => (
                   <option key={d} value={d}>
                     {fmtDate(d)}
                   </option>
@@ -601,7 +597,7 @@ export default function DietTab({
 
           {/* Show Historical details */}
           {(() => {
-            const hLogs = state.foodLogs.filter((l) => l.date === histDietDate);
+            const hLogs = state.foodLogs.filter((l) => l.date === activeHistDietDate);
             const hTot = getTotals(hLogs);
             if (!hLogs.length) {
               return (

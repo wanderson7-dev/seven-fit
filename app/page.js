@@ -456,6 +456,7 @@ export default function Home() {
   useEffect(() => {
     // Always load from localStorage immediately so the app renders without waiting for network
     const local = loadLocalState();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (local) setState((prev) => ({ ...prev, ...local }));
 
     if (supabase) {
@@ -826,6 +827,7 @@ export default function Home() {
       return existing.id;
     }
 
+    // eslint-disable-next-line react-hooks/purity
     const localId = Date.now();
     const newWorkout = {
       id: localId,

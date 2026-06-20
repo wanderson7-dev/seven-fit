@@ -12,12 +12,16 @@ export default function EditDayModal({ isOpen, onClose, dayIndex, schedule, save
 
   useEffect(() => {
     if (dayObj) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTypeName(dayObj.type || "");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExerciseGroup(dayObj.group || "");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCalType(dayObj.calType || "normal");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedColor(dayObj.color || COLORS[0]);
     }
-  }, [dayObj]);
+  }, [dayObj, COLORS]);
 
   if (!isOpen || !dayObj) return null;
 

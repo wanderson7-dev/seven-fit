@@ -172,7 +172,7 @@ export default function ExerciseGuideModal({ isOpen, onClose, exerciseName }) {
                     <Star size={12} fill="#f97316" /> Dica de Ouro
                   </div>
                   <div style={{ fontSize: "12.5px", color: "rgba(255,255,255,0.85)", fontStyle: "italic", lineHeight: "1.4" }}>
-                    "{guide.proTip}"
+                    {`"${guide.proTip}"`}
                   </div>
                 </div>
               )}

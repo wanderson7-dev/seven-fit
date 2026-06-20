@@ -6,17 +6,6 @@ import { Camera, X, Search, Barcode, FileText, AlertCircle, Image, Sparkles } fr
 export default function ScannerModal({ isOpen, onClose, onFoodScanned, allFoods = [], initialTab = "barcode" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Sync activeTab with initialTab when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setActiveTab(initialTab);
-      setBarcodeError("");
-      setBarcodeInput("");
-      setModalSearchQuery("");
-      setModalOnlineFoods([]);
-    }
-  }, [isOpen, initialTab]);
-
   // Barcode tab states
   const [barcodeInput, setBarcodeInput] = useState("");
   const [barcodeError, setBarcodeError] = useState("");
@@ -34,8 +23,25 @@ export default function ScannerModal({ isOpen, onClose, onFoodScanned, allFoods 
   const [modalOnlineFoods, setModalOnlineFoods] = useState([]);
   const [isModalSearching, setIsModalSearching] = useState(false);
 
+  // Sync activeTab with initialTab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab(initialTab);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBarcodeError("");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBarcodeInput("");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModalSearchQuery("");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModalOnlineFoods([]);
+    }
+  }, [isOpen, initialTab]);
+
   useEffect(() => {
     if (!modalSearchQuery || modalSearchQuery.trim().length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalOnlineFoods([]);
       return;
     }

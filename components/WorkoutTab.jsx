@@ -65,14 +65,53 @@ export default function WorkoutTab({
 
   const [activeSubTab, setActiveSubTab] = useState("session");
   const [histWrkDate, setHistWrkDate] = useState("");
-  const [sessionDate, setSessionDate] = useState(() => today());
-  const [selectedGroup, setSelectedGroup] = useState(null);
+  
+  const [sessionDate, setSessionDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("co_active_sessionDate") || today();
+    }
+    return today();
+  });
+  
+  const [selectedGroup, setSelectedGroup] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("co_active_selectedGroup") || null;
+    }
+    return null;
+  });
+
+  const [sessionStarted, setSessionStarted] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("co_active_sessionStarted") === "true";
+    }
+    return false;
+  });
 
   // Sessão: lista de exercícios com sets
-  const [sessionExs, setSessionExs] = useState([]); // [{name, sets:[{type,weight,reps}]}]
-  const [sessionNotes, setSessionNotes] = useState("");
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+  const [sessionExs, setSessionExs] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedStarted = localStorage.getItem("co_active_sessionStarted") === "true";
+      if (savedStarted) {
+        const savedExs = localStorage.getItem("co_active_sessionExs");
+        if (savedExs) {
+          try {
+            return JSON.parse(savedExs);
+          } catch (e) {
+            console.error("Failed to parse saved sessionExs:", e);
+          }
+        }
+      }
+    }
+    return [];
+  });
+
+  const [sessionNotes, setSessionNotes] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("co_active_sessionNotes") || "";
+    }
+    return "";
+  });
+
 
   const [expandedEx, setExpandedEx] = useState(null); // índice do card aberto
   const [serieType, setSerieType] = useState("valida");
@@ -92,9 +131,34 @@ export default function WorkoutTab({
   const [showLibrary, setShowLibrary] = useState(false);
 
   // Cardio & Gasto Calórico states
-  const [weightDuration, setWeightDuration] = useState("60");
-  const [weightKcal, setWeightKcal] = useState("360");
-  const [cardios, setCardios] = useState([]);
+  const [weightDuration, setWeightDuration] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("co_active_weightDuration") || "60";
+    }
+    return "60";
+  });
+  
+  const [weightKcal, setWeightKcal] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("co_active_weightKcal") || "360";
+    }
+    return "360";
+  });
+
+  const [cardios, setCardios] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedCardios = localStorage.getItem("co_active_cardios");
+      if (savedCardios) {
+        try {
+          return JSON.parse(savedCardios);
+        } catch (e) {
+          console.error("Failed to parse saved cardios:", e);
+        }
+      }
+    }
+    return [];
+  });
+  
   const [showCardioForm, setShowCardioForm] = useState(false);
   const [cardioType, setCardioType] = useState("Corrida");
   const [cardioDuration, setCardioDuration] = useState("");
@@ -138,64 +202,26 @@ export default function WorkoutTab({
   const s = schedForDate(sessionDate);
   const activeGroup = selectedGroup || s.group;
 
+  // Derived values for default weight training session info
+  const existingWorkout = (state.workoutLogs || []).find(w => w.date === sessionDate);
+  const displayDuration = sessionStarted ? weightDuration : (existingWorkout ? "0" : "60");
+  const displayKcal = sessionStarted ? weightKcal : (existingWorkout ? "0" : "360");
+
   // Inicializa sessão com exercícios do plano quando grupo muda
   useEffect(() => {
     if (!sessionStarted && activeGroup) {
       const plan = (workoutPlans && workoutPlans[activeGroup]) || [];
-      setSessionExs(plan.map((name) => ({ name, sets: [] })));
-    }
-  }, [activeGroup, sessionStarted]);
-
-  // Load active session from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedStarted = localStorage.getItem("co_active_sessionStarted");
-        if (savedStarted === "true") {
-          const savedExs = localStorage.getItem("co_active_sessionExs");
-          const savedNotes = localStorage.getItem("co_active_sessionNotes");
-          const savedDur = localStorage.getItem("co_active_weightDuration");
-          const savedKcal = localStorage.getItem("co_active_weightKcal");
-          const savedCardios = localStorage.getItem("co_active_cardios");
-          const savedDate = localStorage.getItem("co_active_sessionDate");
-          const savedGroup = localStorage.getItem("co_active_selectedGroup");
-
-          if (savedDate) setSessionDate(savedDate);
-          if (savedGroup) setSelectedGroup(savedGroup);
-          if (savedExs) setSessionExs(JSON.parse(savedExs));
-          if (savedNotes) setSessionNotes(savedNotes);
-          if (savedDur) setWeightDuration(savedDur);
-          if (savedKcal) setWeightKcal(savedKcal);
-          if (savedCardios) setCardios(JSON.parse(savedCardios));
-          setSessionStarted(true);
-        }
-      } catch (e) {
-        console.error("Failed to load active session from localStorage:", e);
-      } finally {
-        setIsSessionLoaded(true);
+      const currentNames = sessionExs.map((e) => e.name);
+      const isDifferent = plan.length !== currentNames.length || plan.some((name, i) => name !== currentNames[i]);
+      if (isDifferent) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSessionExs(plan.map((name) => ({ name, sets: [] })));
       }
     }
-  }, []);
-
-  // Adjust default duration and kcal based on whether a workout is already saved for this date
-  useEffect(() => {
-    if (!isSessionLoaded) return;
-    if (!sessionStarted && state.workoutLogs) {
-      const existing = state.workoutLogs.find(w => w.date === sessionDate);
-      const targetDuration = existing ? "0" : "60";
-      const targetKcal = existing ? "0" : "360";
-      if (weightDuration !== targetDuration) {
-        setWeightDuration(targetDuration);
-      }
-      if (weightKcal !== targetKcal) {
-        setWeightKcal(targetKcal);
-      }
-    }
-  }, [isSessionLoaded, sessionDate, state.workoutLogs, sessionStarted, weightDuration, weightKcal]);
+  }, [activeGroup, sessionStarted, workoutPlans, sessionExs]);
 
   // Save active session to localStorage on change
   useEffect(() => {
-    if (!isSessionLoaded) return;
     if (typeof window !== "undefined") {
       if (sessionStarted) {
         localStorage.setItem("co_active_sessionStarted", "true");
@@ -221,7 +247,7 @@ export default function WorkoutTab({
         localStorage.removeItem("co_active_selectedGroup");
       }
     }
-  }, [isSessionLoaded, sessionStarted, sessionExs, sessionNotes, weightDuration, weightKcal, cardios, sessionDate, selectedGroup]);
+  }, [sessionStarted, sessionExs, sessionNotes, weightDuration, weightKcal, cardios, sessionDate, selectedGroup]);
 
   // Performance anterior
   const getPrevPerf = (exName) => {
@@ -281,8 +307,8 @@ export default function WorkoutTab({
   const handleSaveWorkout = () => {
     const finalExs = sessionExs.filter((ex) => ex.sets.length > 0);
     
-    const wDur = parseInt(weightDuration);
-    const wKcal = parseInt(weightKcal);
+    const wDur = parseInt(displayDuration);
+    const wKcal = parseInt(displayKcal);
     if (finalExs.length > 0 && wDur > 0) {
       finalExs.push({
         name: "Treino de Força (Info)",
@@ -350,10 +376,8 @@ export default function WorkoutTab({
   };
 
   // Histórico
-  const dates = [...new Set(state.workoutLogs.map((w) => w.date))].sort().reverse();
-  useEffect(() => {
-    if (dates.length && !histWrkDate) setHistWrkDate(dates[0]);
-  }, [dates, histWrkDate]);
+  const dates = [...new Set((state.workoutLogs || []).map((w) => w.date))].sort().reverse();
+  const activeHistDate = histWrkDate || dates[0] || "";
 
   const hasSets = sessionExs.some((e) => e.sets.length > 0);
 
@@ -399,6 +423,82 @@ export default function WorkoutTab({
               </button>
             ))}
           </div>
+
+          {/* Adicionar Exercício à Sessão */}
+          {activeGroup && (
+            <div style={{ marginBottom: "14px" }}>
+              {!showAddEx ? (
+                <button
+                  className="btn btn-ghost"
+                  style={{ width: "100%", padding: "10px", fontSize: "12px", border: "1px dashed rgba(255,255,255,0.15)", color: "#f97316", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}
+                  onClick={() => setShowAddEx(true)}
+                >
+                  <Plus size={14} /> Adicionar Exercício
+                </button>
+              ) : (
+                <div className="card" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px", padding: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                    <span style={{ fontWeight: "700", fontSize: "12px", color: "#f97316" }}>Selecionar Exercício</span>
+                    <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer" }} onClick={() => setShowAddEx(false)}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div style={{ position: "relative", marginBottom: "10px" }}>
+                    <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.3)" }} />
+                    <input
+                      type="text"
+                      placeholder="Buscar exercício..."
+                      value={exSearch}
+                      onChange={(e) => setExSearch(e.target.value)}
+                      style={{ paddingLeft: "32px", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                    {getExercises(activeGroup)
+                      .filter(name => !exSearch || name.toLowerCase().includes(exSearch.toLowerCase()))
+                      .map(name => {
+                        const inSession = sessionExs.some(e => e.name === name);
+                        return (
+                          <div
+                            key={name}
+                            onClick={() => !inSession && handleAddExToSession(name)}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "8px 10px",
+                              borderRadius: "8px",
+                              cursor: inSession ? "default" : "pointer",
+                              marginBottom: "2px",
+                              background: inSession ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)",
+                              opacity: inSession ? 0.6 : 1
+                            }}
+                          >
+                            <span style={{ fontSize: "12px" }}>{name}</span>
+                            {inSession ? <CheckCircle2 size={12} style={{ color: "#10b981" }} /> : <Plus size={12} style={{ color: "#f97316" }} />}
+                          </div>
+                        );
+                      })}
+                  </div>
+                  {exSearch && !getExercises(activeGroup).some(name => name.toLowerCase() === exSearch.trim().toLowerCase()) && (
+                    <button
+                      className="btn btn-ghost"
+                      style={{ width: "100%", padding: "8px", fontSize: "12px", border: "1px dashed rgba(249,115,22,0.3)", color: "#f97316", marginTop: "6px", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}
+                      onClick={() => {
+                        const newName = exSearch.trim();
+                        if (saveCustomExercise) {
+                          saveCustomExercise(activeGroup, newName, "Outros");
+                        }
+                        handleAddExToSession(newName);
+                      }}
+                    >
+                      <Plus size={12} /> {`Criar e adicionar "${exSearch.trim()}"`}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Exercise cards — agrupados por músculo */}
           {(() => {
@@ -553,7 +653,7 @@ export default function WorkoutTab({
                     <div className="label" style={{ marginBottom: "4px" }}>Duração Musculação (min)</div>
                     <input
                       type="number"
-                      value={weightDuration}
+                      value={displayDuration}
                       onChange={(e) => {
                         const val = e.target.value;
                         setWeightDuration(val);
@@ -567,7 +667,7 @@ export default function WorkoutTab({
                     <div className="label" style={{ marginBottom: "4px" }}>Est. Calorias Gastas (kcal)</div>
                     <input
                       type="number"
-                      value={weightKcal}
+                      value={displayKcal}
                       onChange={(e) => {
                         setWeightKcal(e.target.value);
                         setSessionStarted(true);
@@ -712,7 +812,7 @@ export default function WorkoutTab({
 
               {/* Resumo Gasto Calórico Total */}
               {(() => {
-                const totalBurn = (hasSets ? parseInt(weightKcal) || 0 : 0) + cardios.reduce((acc, c) => acc + c.kcal, 0);
+                const totalBurn = (hasSets ? parseInt(displayKcal) || 0 : 0) + cardios.reduce((acc, c) => acc + c.kcal, 0);
                 if (totalBurn > 0) {
                   return (
                     <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontWeight: "600", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px", display: "flex", justifyContent: "space-between" }}>
@@ -1006,14 +1106,14 @@ export default function WorkoutTab({
         <div>
           <div style={{ marginBottom: "14px" }}>
             <div className="label" style={{ marginBottom: "6px" }}>Selecionar data</div>
-            <select value={histWrkDate} onChange={(e) => setHistWrkDate(e.target.value)}>
+            <select value={activeHistDate} onChange={(e) => setHistWrkDate(e.target.value)}>
               <option value="">— Escolha uma data —</option>
               {dates.map((d) => <option key={d} value={d}>{fmtDate(d)}</option>)}
             </select>
           </div>
-          {histWrkDate && (
+          {activeHistDate && (
             <div>
-              {state.workoutLogs.filter((w) => w.date === histWrkDate).map((w) => (
+              {state.workoutLogs.filter((w) => w.date === activeHistDate).map((w) => (
                 <div className="card" key={w.id}>
                   <div className="row-sb" style={{ marginBottom: "10px" }}>
                     <span className="syne" style={{ fontWeight: "700", fontSize: "16px" }}>{w.type}</span>
@@ -1075,7 +1175,7 @@ export default function WorkoutTab({
                   {w.notes && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "6px", fontStyle: "italic" }}>Obs: {w.notes}</div>}
                 </div>
               ))}
-              {!state.workoutLogs.filter((w) => w.date === histWrkDate).length && (
+              {!state.workoutLogs.filter((w) => w.date === activeHistDate).length && (
                 <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "24px" }}>Sem treinos gravados nesta data.</div>
               )}
             </div>
