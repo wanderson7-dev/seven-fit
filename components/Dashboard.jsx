@@ -111,8 +111,9 @@ export default function Dashboard({
   const wl = state.weightLogs || [];
 
   // ── Peso ──────────────────────────────────────────────────────
-  const lastW = wl.length ? wl[wl.length - 1].value : PROFILE.weight;
-  const firstW = PROFILE.weight; // peso inicial = sempre o do perfil
+  const profile = PROFILE || {};
+  const firstW = parseFloat(profile.weight) || 87;
+  const lastW = wl.length ? parseFloat(wl[wl.length - 1].value) : firstW;
   const lost   = Math.max(0, firstW - lastW);
 
   // ── Semanas em processo ───────────────────────────────────────
@@ -123,11 +124,18 @@ export default function Dashboard({
     return Math.max(1, Math.ceil(diffDays / 7));
   })();
 
+  const height = parseFloat(profile.height) || 176;
+  const age = parseInt(profile.age) || 23;
+  const current_bf = parseFloat(profile.current_bf) || 19;
+  const goal_bf = parseFloat(profile.goal_bf) || 12;
+  const activityFactor = parseFloat(profile.activityFactor) || 1.725;
+  const gender = profile.gender || "male";
+
   // ── TDEE via Mifflin-St Jeor (mesmo cálculo de calculateMetabolicTargets) ─
-  const tmb = PROFILE.gender === "female"
-    ? (10 * firstW + 6.25 * (PROFILE.height || 176) - 5 * (PROFILE.age || 30) - 161)
-    : (10 * firstW + 6.25 * (PROFILE.height || 176) - 5 * (PROFILE.age || 30) + 5);
-  const tdee = Math.round(tmb * (parseFloat(PROFILE.activityFactor) || 1.725));
+  const tmb = gender === "female"
+    ? (10 * firstW + 6.25 * height - 5 * age - 161)
+    : (10 * firstW + 6.25 * height - 5 * age + 5);
+  const tdee = Math.round(tmb * activityFactor);
 
   // ── Déficit calórico acumulado real (via food logs) ───────────
   // Para cada dia registrado: déficit = TDEE − kcal consumidas
@@ -150,16 +158,16 @@ export default function Dashboard({
     ? fatKgByDeficit
     : fatKgByScale;
 
-  const initialFatKg  = firstW * (PROFILE.current_bf / 100);
+  const initialFatKg  = firstW * (current_bf / 100);
   const currentFatKg  = Math.max(0, initialFatKg - Math.max(0, fatKgLost));
   const calculatedBf = (currentFatKg / lastW) * 100;
   const bfNow = Math.max(
-    PROFILE.goal_bf,
-    lastW < firstW ? Math.min(PROFILE.current_bf, calculatedBf) : calculatedBf
+    goal_bf,
+    lastW < firstW ? Math.min(current_bf, calculatedBf) : calculatedBf
   ).toFixed(1);
 
-  const bfDiffTotal = PROFILE.current_bf - PROFILE.goal_bf;
-  const bfLost      = PROFILE.current_bf - Number(bfNow);
+  const bfDiffTotal = current_bf - goal_bf;
+  const bfLost      = current_bf - Number(bfNow);
   const bfProg      = bfDiffTotal > 0 ? Math.min((bfLost / bfDiffTotal) * 100, 100).toFixed(0) : 100;
 
   const todayStr = localDateStr();
@@ -231,7 +239,7 @@ export default function Dashboard({
           icon={Flame}
           label="BF Estimado"
           value={`~${bfNow}%`}
-          sub={`Meta: ${PROFILE.goal_bf}%`}
+          sub={`Meta: ${goal_bf}%`}
           color="#f97316"
         />
         <StatCard
@@ -253,11 +261,11 @@ export default function Dashboard({
       {/* BF PROGRESS BAR */}
       <div className="card">
         <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", marginBottom: "10px" }}>
-          Progresso até {PROFILE.goal_bf}% BF
+          Progresso até {goal_bf}% BF
         </div>
         <div className="row-sb" style={{ fontSize: "12px", marginBottom: "6px" }}>
           <span style={{ color: "rgba(255,255,255,0.6)" }}>
-            {PROFILE.current_bf}% → {PROFILE.goal_bf}%
+            {current_bf}% → {goal_bf}%
           </span>
           <span style={{ color: "#f97316", fontWeight: "700" }}>{bfProg}%</span>
         </div>

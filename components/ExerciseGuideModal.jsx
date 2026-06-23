@@ -8,6 +8,18 @@ export default function ExerciseGuideModal({ isOpen, onClose, exerciseName }) {
   const [guide, setGuide] = useState(null);
   const [error, setError] = useState("");
   const [apiMessage, setApiMessage] = useState("");
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!guide?.images || guide.images.length <= 1) {
+      setCurrentImageIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % guide.images.length);
+    }, 850);
+    return () => clearInterval(interval);
+  }, [guide?.images]);
 
   useEffect(() => {
     if (!isOpen || !exerciseName) return;
@@ -131,6 +143,46 @@ export default function ExerciseGuideModal({ isOpen, onClose, exerciseName }) {
                   )}
                 </div>
               </div>
+
+              {/* Execution Images (Animated Loop) */}
+              {guide.images && guide.images.length > 0 && (
+                <div>
+                  <div className="label" style={{ marginBottom: "6px" }}>Execução Animada</div>
+                  <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+                    <img
+                      src={`https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${guide.images[currentImageIndex]}`}
+                      alt={`${exerciseName} - Passo ${currentImageIndex + 1}`}
+                      style={{
+                        width: "100%",
+                        maxWidth: "320px",
+                        height: "auto",
+                        aspectRatio: "1.2",
+                        objectFit: "contain",
+                        borderRadius: "16px",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: "#0a0a14",
+                        padding: "6px"
+                      }}
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                    {guide.images.length > 1 && (
+                      <div style={{
+                        position: "absolute",
+                        bottom: "8px",
+                        background: "rgba(0,0,0,0.6)",
+                        padding: "3px 8px",
+                        borderRadius: "8px",
+                        fontSize: "9px",
+                        fontWeight: "700",
+                        color: "#f97316",
+                        letterSpacing: "0.5px"
+                      }}>
+                        QUADRO {currentImageIndex + 1}/{guide.images.length}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Setup checklist */}
               <div>

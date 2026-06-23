@@ -11,17 +11,21 @@ export default function DashboardTab() {
   const [weightInput, setWeightInput] = useState("");
 
   const t = getTargets();
-  const todayLogs = state.foodLogs.filter((l) => l.date === today());
+  const todayLogs = (state.foodLogs || []).filter((l) => l.date === today());
   const totals = getTotals(todayLogs);
 
   // Body Fat calculations
   const weightLogs = state.weightLogs || [];
-  const latestWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].value : state.profile.weight;
-  
-  const startingWeight = weightLogs.length > 0 ? weightLogs[0].value : state.profile.weight;
+  const profile = state.profile || {};
+  const weight = parseFloat(profile.weight) || 87;
+  const current_bf = parseFloat(profile.current_bf) || 19;
+  const goal_bf = parseFloat(profile.goal_bf) || 12;
+
+  const latestWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].value : weight;
+  const startingWeight = weightLogs.length > 0 ? weightLogs[0].value : weight;
   const kgLost = Math.max(0, startingWeight - latestWeight);
   // BF formula: BF Now = BF Start - (kg lost * 0.15)
-  const calculatedBF = Math.max(state.profile.goal_bf, state.profile.current_bf - (kgLost * 0.15));
+  const calculatedBF = Math.max(goal_bf, current_bf - (kgLost * 0.15));
 
   const handleLogWeight = () => {
     const val = parseFloat(weightInput);
@@ -37,7 +41,7 @@ export default function DashboardTab() {
     const dateMap = {};
     
     // Group food logs by date
-    state.foodLogs.forEach((l) => {
+    (state.foodLogs || []).forEach((l) => {
       if (!dateMap[l.date]) dateMap[l.date] = 0;
       dateMap[l.date] += l.kcal || 0;
     });
@@ -140,9 +144,9 @@ export default function DashboardTab() {
       {/* BF Progression */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Jornada de Percentual de Gordura</Text>
-        <View style={styles.bfLabelRow}>
+         <View style={styles.bfLabelRow}>
           <View>
-            <Text style={styles.bfVal}>{state.profile.current_bf}%</Text>
+            <Text style={styles.bfVal}>{current_bf}%</Text>
             <Text style={styles.bfLabel}>Início</Text>
           </View>
           <View style={{ alignItems: "center" }}>
@@ -150,12 +154,12 @@ export default function DashboardTab() {
             <Text style={styles.bfLabel}>Estimado</Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={styles.bfVal}>{state.profile.goal_bf}%</Text>
+            <Text style={styles.bfVal}>{goal_bf}%</Text>
             <Text style={styles.bfLabel}>Meta</Text>
           </View>
         </View>
         <View style={styles.bfBarTrack}>
-          <View style={[styles.bfBarFill, { width: `${Math.min(((state.profile.current_bf - calculatedBF) / Math.max(state.profile.current_bf - state.profile.goal_bf, 1)) * 100, 100)}%` }]} />
+          <View style={[styles.bfBarFill, { width: `${Math.min(((current_bf - calculatedBF) / Math.max(current_bf - goal_bf, 1)) * 100, 100)}%` }]} />
         </View>
         <Text style={styles.bfNote}>Dica: Cada 1kg perdido reduz ~0.15% de BF.</Text>
       </View>

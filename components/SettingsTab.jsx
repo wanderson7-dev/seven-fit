@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, Camera, FileText, User, TrendingUp, Edit, Cloud, CloudOff, LogOut } from "lucide-react";
 
 export default function SettingsTab({
@@ -28,6 +28,19 @@ export default function SettingsTab({
   const [gender, setGender] = useState(state.profile?.gender || "male");
   const [proteinFactor, setProteinFactor] = useState(state.profile?.proteinFactor || 1.8);
   const [profileSavedStatus, setProfileSavedStatus] = useState("");
+
+  useEffect(() => {
+    if (state.profile) {
+      setWeight(state.profile.weight || "");
+      setHeight(state.profile.height || "");
+      setAge(state.profile.age || "");
+      setCurrentBf(state.profile.current_bf || "");
+      setGoalBf(state.profile.goal_bf || "");
+      setActivityFactor(state.profile.activityFactor || 1.725);
+      setGender(state.profile.gender || "male");
+      setProteinFactor(state.profile.proteinFactor || 1.8);
+    }
+  }, [state.profile]);
 
   const handleGoogleSignIn = async () => {
     if (!supabase) return;

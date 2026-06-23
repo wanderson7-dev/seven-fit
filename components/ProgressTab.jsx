@@ -39,10 +39,17 @@ export default function ProgressTab({
 
   const wl = state.weightLogs || [];
 
-  // Peso atual = último log; peso inicial = SEMPRE o do perfil
-  const lastW  = wl.length ? wl[wl.length - 1].value : PROFILE.weight;
-  const firstW = PROFILE.weight;
+  // Safe profile extraction with fallback defaults
+  const profile = PROFILE || {};
+  const firstW = parseFloat(profile.weight) || 87;
+  const lastW  = wl.length ? parseFloat(wl[wl.length - 1].value) : firstW;
   const lost   = Math.max(0, firstW - lastW);
+  const height = parseFloat(profile.height) || 176;
+  const age = parseInt(profile.age) || 23;
+  const current_bf = parseFloat(profile.current_bf) || 19;
+  const goal_bf = parseFloat(profile.goal_bf) || 12;
+  const activityFactor = parseFloat(profile.activityFactor) || 1.725;
+  const gender = profile.gender || "male";
 
   // Semanas reais desde o primeiro log de peso
   const weeks = (() => {
@@ -53,10 +60,20 @@ export default function ProgressTab({
   })();
 
   // TDEE via Mifflin-St Jeor (igual ao Dashboard e page.js)
-  const tmbPT = PROFILE.gender === "female"
-    ? (10 * firstW + 6.25 * (PROFILE.height || 176) - 5 * (PROFILE.age || 30) - 161)
-    : (10 * firstW + 6.25 * (PROFILE.height || 176) - 5 * (PROFILE.age || 30) + 5);
-  const tdeePT = Math.round(tmbPT * (parseFloat(PROFILE.activityFactor) || 1.725));
+  const tmbPT = gender === "female"
+    ? (10 * firstW + 6.25 * height - 5 * age - 161)
+    : (10 * firstW + 6.25 * height - 5 * age + 5);
+  const tdeePT = Math.round(tmbPT * activityFactor);
+
+  // Calculations for Reference Table
+  const weeklyWeightLossTargetKg = firstW * 0.007;
+  const weeklyDeficitNeeded = Math.round(weeklyWeightLossTargetKg * 7700);
+  const proteinFactor = parseFloat(profile.proteinFactor) || 1.8;
+  const dailyAverageControlledTarget = tdeePT - Math.round(weeklyDeficitNeeded / 6);
+  const kcalNormal = Math.round((dailyAverageControlledTarget - 30) / 50) * 50;
+  const carbsNormal = Math.max(0, Math.round((kcalNormal - (Math.round(proteinFactor * firstW) * 4) - (Math.round(0.8 * firstW) * 9)) / 4));
+  const kcalHeavy = kcalNormal + 200;
+  const carbsHeavy = Math.max(0, Math.round((kcalHeavy - (Math.round(proteinFactor * firstW) * 4) - (Math.round(0.8 * firstW) * 9)) / 4));
 
   // Déficit calórico acumulado dos food logs → gordura perdida (7.700 kcal = 1kg)
   const allLogs = state.foodLogs || [];
@@ -74,16 +91,16 @@ export default function ProgressTab({
     ? (fatKgByDeficit * 0.6 + fatKgByScale * 0.4)
     : loggedDates.length > 0 ? fatKgByDeficit : fatKgByScale;
 
-  const initialFatKg = firstW * (PROFILE.current_bf / 100);
+  const initialFatKg = firstW * (current_bf / 100);
   const currentFatKg = Math.max(0, initialFatKg - Math.max(0, fatKgLost));
   const calculatedBf = (currentFatKg / lastW) * 100;
   const bfNow = Math.max(
-    PROFILE.goal_bf,
-    lastW < firstW ? Math.min(PROFILE.current_bf, calculatedBf) : calculatedBf
+    goal_bf,
+    lastW < firstW ? Math.min(current_bf, calculatedBf) : calculatedBf
   ).toFixed(1);
 
   // Kg de gordura restante até a meta e previsão de semanas
-  const kgToGoal = Math.max(0, currentFatKg - lastW * (PROFILE.goal_bf / 100)).toFixed(1);
+  const kgToGoal = Math.max(0, currentFatKg - lastW * (goal_bf / 100)).toFixed(1);
   const weeklyLossRate = lost / Math.max(1, weeks);
   const weeksLeft = weeklyLossRate > 0.05 ? Math.ceil(parseFloat(kgToGoal) / weeklyLossRate) : "∞";
 
@@ -125,9 +142,9 @@ export default function ProgressTab({
   const range = maxW - minW || 1;
 
   // Lifetime Stats
-  const dietDaysCount = [...new Set(state.foodLogs.map((l) => l.date))].length;
-  const totalCaloriesIntake = state.foodLogs.reduce((a, l) => a + l.kcal, 0);
-  const totalWorkoutVolume = state.workoutLogs.reduce((a, w) => a + (w.volume || 0), 0);
+  const dietDaysCount = [...new Set((state.foodLogs || []).map((l) => l.date))].length;
+  const totalCaloriesIntake = (state.foodLogs || []).reduce((a, l) => a + l.kcal, 0);
+  const totalWorkoutVolume = (state.workoutLogs || []).reduce((a, w) => a + (w.volume || 0), 0);
 
   // --- Weekly Performance Stats (Last 7 Days) ---
   const localDateStr = (d = new Date()) => {
@@ -144,25 +161,25 @@ export default function ProgressTab({
 
   // 1. Calorie Deficit
   const loggedDays = last7Days.filter(dateStr => 
-    state.foodLogs.some(l => l.date === dateStr)
+    (state.foodLogs || []).some(l => l.date === dateStr)
   );
 
   let avgDeficitStr = "Sem registros";
   let avgConsumed = 0;
   if (loggedDays.length > 0) {
     const totalLoggedKcal = loggedDays.reduce((acc, dateStr) => {
-      const daySum = state.foodLogs
+      const daySum = (state.foodLogs || [])
         .filter(l => l.date === dateStr)
         .reduce((sum, l) => sum + l.kcal, 0);
       return acc + daySum;
     }, 0);
     avgConsumed = Math.round(totalLoggedKcal / loggedDays.length);
-    const realDeficit = PROFILE.tdee - avgConsumed;
+    const realDeficit = tdeePT - avgConsumed;
     avgDeficitStr = realDeficit > 0 ? `${realDeficit} kcal/dia` : `${Math.abs(realDeficit)} kcal/dia (Superávit)`;
   }
 
   // 2. Sets per Muscle Group
-  const weeklyWorkouts = state.workoutLogs.filter(w => last7Days.includes(w.date));
+  const weeklyWorkouts = (state.workoutLogs || []).filter(w => last7Days.includes(w.date));
   
   const classifyMuscleGroup = (exName) => {
     const name = exName.toLowerCase();
@@ -242,7 +259,7 @@ export default function ProgressTab({
                icon={Flame}
                label="BF Atual"
                value={`~${bfNow}%`}
-               sub={`Meta: ${PROFILE.goal_bf}%`}
+               sub={`Meta: ${goal_bf}%`}
                color="#f97316"
              />
              <StatCard
@@ -255,7 +272,7 @@ export default function ProgressTab({
              <StatCard
                icon={Dumbbell}
                label="Treinos"
-               value={state.workoutLogs.length}
+               value={(state.workoutLogs || []).length}
                sub={`${dietDaysCount} dias c/ dieta`}
                color="#8b5cf6"
              />
@@ -313,9 +330,9 @@ export default function ProgressTab({
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               {[
-                { label: "Início", value: `~${PROFILE.current_bf}%`, color: "#ef4444" },
+                { label: "Início", value: `~${current_bf}%`, color: "#ef4444" },
                 { label: "Atual", value: `~${bfNow}%`, color: "#f97316" },
-                { label: "Meta", value: `${PROFILE.goal_bf}%`, color: "#10b981" },
+                { label: "Meta", value: `${goal_bf}%`, color: "#10b981" },
               ].map((item, index) => (
                 <div style={{ textAlign: "center" }} key={index}>
                   <div className="syne" style={{ fontSize: "22px", fontWeight: "800", color: item.color }}>
@@ -330,7 +347,7 @@ export default function ProgressTab({
                 className="bar-fill"
                 style={{
                   width: `${Math.min(
-                    ((PROFILE.current_bf - parseFloat(bfNow)) / (PROFILE.current_bf - PROFILE.goal_bf)) * 100,
+                    ((current_bf - parseFloat(bfNow)) / Math.max(0.1, current_bf - goal_bf)) * 100,
                     100
                   ).toFixed(0)}%`,
                   background: "linear-gradient(90deg, #ef4444, #f97316, #10b981)",
@@ -507,7 +524,7 @@ export default function ProgressTab({
             <div style={{ fontSize: "14px", fontWeight: "700", marginBottom: "16px" }}>Resumo Completo</div>
             {[
               { icon: Calendar, label: "Dias de dieta", value: dietDaysCount, color: "#f97316" },
-              { icon: Dumbbell, label: "Treinos totais", value: state.workoutLogs.length, color: "#8b5cf6" },
+              { icon: Dumbbell, label: "Treinos totais", value: (state.workoutLogs || []).length, color: "#8b5cf6" },
               { icon: Scale, label: "Registros de peso", value: wl.length, color: "#10b981" },
               { icon: Camera, label: "Semanas com foto", value: (state.progressPhotos || []).length, color: "#3b82f6" },
               { icon: Flame, label: "Calorias consumidas (total)", value: totalCaloriesIntake.toLocaleString(), color: "#ef4444" },
@@ -544,12 +561,12 @@ export default function ProgressTab({
             {/* Deficit card */}
             <div style={{ background: "rgba(255,255,255,0.02)", padding: "12px", borderRadius: "10px", marginBottom: "12px" }}>
               <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "4px" }}>Déficit Calórico Médio Real</div>
-              <div className="syne" style={{ fontSize: "18px", fontWeight: "700", color: avgConsumed > 0 && (PROFILE.tdee - avgConsumed) > 0 ? "#10b981" : "#f97316" }}>
+              <div className="syne" style={{ fontSize: "18px", fontWeight: "700", color: avgConsumed > 0 && (tdeePT - avgConsumed) > 0 ? "#10b981" : "#f97316" }}>
                 {avgDeficitStr}
               </div>
               {avgConsumed > 0 && (
                 <div className="small" style={{ marginTop: "4px" }}>
-                  Média de consumo: {avgConsumed} kcal / Gasto estimado (TDEE): {PROFILE.tdee} kcal
+                  Média de consumo: {avgConsumed} kcal / Gasto estimado (TDEE): {tdeePT} kcal
                 </div>
               )}
             </div>
@@ -588,13 +605,13 @@ export default function ProgressTab({
             </div>
             
             {[
-              { label: "Peso Inicial / Altura", value: `${PROFILE.weight} kg / ${(PROFILE.height || 176) / 100} m` },
-              { label: "Idade / BF Inicial", value: `${PROFILE.age} anos / ~${PROFILE.current_bf}%` },
-              { label: "TDEE (Gasto Energético)", value: `~${PROFILE.tdee} kcal/dia` },
-              { label: "Déficit Semanal Alvo", value: `${PROFILE.weeklyDeficitNeeded} kcal (~${(PROFILE.weeklyWeightLossTargetKg * 1000).toFixed(0)}g/semana)` },
-              { label: "Proteína Diária", value: `${Math.round(PROFILE.proteinFactor * PROFILE.weight)}g (${PROFILE.proteinFactor}g/kg)` },
-              { label: "Dias Normais (Carbo Mod.)", value: `${PROFILE.normal?.kcal || 2600} kcal (${PROFILE.normal?.carbs || 290}g carbo)` },
-              { label: "Dias Pesados (Carbo Alto.)", value: `${PROFILE.heavy?.kcal || 2800} kcal (${PROFILE.heavy?.carbs || 330}g carbo)` },
+              { label: "Peso Inicial / Altura", value: `${firstW} kg / ${height / 100} m` },
+              { label: "Idade / BF Inicial", value: `${age} anos / ~${current_bf}%` },
+              { label: "TDEE (Gasto Energético)", value: `~${tdeePT} kcal/dia` },
+              { label: "Déficit Semanal Alvo", value: `${weeklyDeficitNeeded} kcal (~${(weeklyWeightLossTargetKg * 1000).toFixed(0)}g/semana)` },
+              { label: "Proteína Diária", value: `${Math.round(proteinFactor * firstW)}g (${proteinFactor}g/kg)` },
+              { label: "Dias Normais (Carbo Mod.)", value: `${kcalNormal} kcal (${carbsNormal}g carbo)` },
+              { label: "Dias Pesados (Carbo Alto.)", value: `${kcalHeavy} kcal (${carbsHeavy}g carbo)` },
               { label: "Domingo (Ref. Livre)", value: "Não contabilizado (Livre)" }
             ].map((row, idx) => (
               <div

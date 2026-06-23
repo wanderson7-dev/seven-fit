@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Flame, CheckCircle2, BookOpen, History, X, Plus, Save, Zap, Droplets, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Flame, CheckCircle2, BookOpen, History, X, Plus, Save, Zap, Droplets, Search, ChevronDown, ChevronUp, Trash2, GripVertical } from "lucide-react";
+import exercisesDb from "@/lib/exercises-ptbr.json";
 
 // Sub-grupamentos musculares por tipo de treino
 const MUSCLE_SUBGROUPS = {
@@ -20,16 +21,19 @@ const MUSCLE_SUBGROUPS = {
     "Posterior":  ["Stiff","Mesa Flexora"],
     "Adutores":   ["Cadeira Adutora","Cadeira Abdutora"],
     "Panturrilha":["Panturrilha em Pé","Panturrilha Sentado","Panturrilha no Leg Press"],
+    "Abdômen":    [],
   },
   Upper: {
     "Peito":   ["Supino Reto","Supino Inclinado","Crucifixo","Pec Deck"],
     "Ombro":   ["Desenvolvimento com Halteres","Elevação Lateral","Face Pull"],
     "Tríceps": ["Tríceps Corda","Tríceps Testa"],
     "Costas":  ["Puxada Frente","Remada Curvada","Remada Unilateral","Pullover"],
+    "Bíceps":  [],
   },
   Lower: {
     "Pernas":  ["Agachamento Livre","Leg Press","Cadeira Extensora","Mesa Flexora","Stiff","Avanço","Panturrilha em Pé","Panturrilha Sentado"],
     "Bíceps":  ["Rosca Direta","Rosca Martelo","Rosca Concentrada"],
+    "Abdômen":    [],
   },
 };
 
@@ -37,6 +41,61 @@ const MUSCLE_SUBGROUPS = {
 // customMap é passado em runtime para exercícios criados pelo usuário
 function getMuscle(group, name, customMap = {}) {
   if (customMap[name]) return customMap[name];
+  
+  const normalize = (str) =>
+    str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const normalizedName = normalize(name);
+  
+  // Try to find in exercisesDb
+  const ex = exercisesDb.find(e => normalize(e.name) === normalizedName);
+  
+  if (ex && ex.primaryMuscles && ex.primaryMuscles.length > 0) {
+    const primary = ex.primaryMuscles[0];
+    const nameNorm = normalizedName;
+
+    if (group === 'Lower') {
+      if (primary === 'biceps') return 'Bíceps';
+      if (primary === 'abdominais') return 'Abdômen';
+      const legsMuscles = ['quadriceps', 'isquiotibiais', 'gluteos', 'panturrilhas', 'adutores', 'abdutores'];
+      if (legsMuscles.includes(primary)) return 'Pernas';
+    }
+
+    if (primary === 'ombros') {
+      const isRearDelt = nameNorm.includes('invertido') || 
+                         nameNorm.includes('inverso') || 
+                         nameNorm.includes('posterior') || 
+                         nameNorm.includes('rear delt') ||
+                         nameNorm.includes('face pull');
+      if (isRearDelt) return group === 'Pull' ? 'Posterior de Ombro' : 'Ombro';
+      return 'Ombro';
+    }
+
+    const map = {
+      'peito': 'Peito',
+      'triceps': 'Tríceps',
+      'trapezio': 'Ombro',
+      'dorsais': 'Costas',
+      'meio-das-costas': 'Costas',
+      'inferior-das-costas': 'Costas',
+      'biceps': 'Bíceps',
+      'antebracos': 'Bíceps',
+      'pescoco': 'Costas',
+      'quadriceps': 'Quadríceps',
+      'isquiotibiais': 'Posterior',
+      'gluteos': 'Posterior',
+      'panturrilhas': 'Panturrilha',
+      'adutores': 'Adutores',
+      'abdutores': 'Adutores',
+      'abdominais': 'Abdômen'
+    };
+
+    return map[primary] || 'Outros';
+  }
+
+  // Fallback to static list matching
   const subs = MUSCLE_SUBGROUPS[group] || {};
   for (const [muscle, list] of Object.entries(subs)) {
     if (list.includes(name)) return muscle;
@@ -117,6 +176,7 @@ export default function WorkoutTab({
   const [serieType, setSerieType] = useState("valida");
   const [serieWeight, setSerieWeight] = useState("");
   const [serieReps, setSerieReps] = useState("");
+  const [draggedExIdx, setDraggedExIdx] = useState(null);
 
   // Busca para adicionar exercício extra
   const [showAddEx, setShowAddEx] = useState(false);
@@ -196,7 +256,16 @@ export default function WorkoutTab({
   function schedForDate(dateStr) {
     const d = new Date(dateStr + "T12:00:00");
     const dow = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"][d.getDay()];
-    return state.schedule.find((x) => x.day === dow) || state.schedule[6];
+    const schedule = state?.schedule || [
+      { day: "Seg", type: "Push", color: "#f97316", calType: "normal", group: "Push" },
+      { day: "Ter", type: "Pull", color: "#3b82f6", calType: "normal", group: "Pull" },
+      { day: "Qua", type: "Legs 🦵", color: "#8b5cf6", calType: "heavy", group: "Legs" },
+      { day: "Qui", type: "Jiu-Jitsu 🥋", color: "#10b981", calType: "normal", group: "Upper" },
+      { day: "Sex", type: "Upper", color: "#f59e0b", calType: "normal", group: "Upper" },
+      { day: "Sab", type: "Lower 🦵", color: "#ec4899", calType: "heavy", group: "Lower" },
+      { day: "Dom", type: "Descanso 🍕", color: "#6b7280", calType: "free", group: null }
+    ];
+    return schedule.find((x) => x.day === dow) || schedule[6];
   }
 
   const s = schedForDate(sessionDate);
@@ -265,6 +334,27 @@ export default function WorkoutTab({
     return { lastWeight: mx.weight, lastReps: mx.reps, vol };
   };
 
+  // Efeito para auto-preencher carga/reps ao expandir card ou adicionar exercício
+  useEffect(() => {
+    if (expandedEx !== null && expandedEx !== undefined && sessionExs[expandedEx]) {
+      const ex = sessionExs[expandedEx];
+      if (ex.sets && ex.sets.length > 0) {
+        const lastSet = ex.sets[ex.sets.length - 1];
+        setSerieWeight(String(lastSet.weight));
+        setSerieReps(String(lastSet.reps));
+      } else {
+        const prev = getPrevPerf(ex.name);
+        if (prev) {
+          setSerieWeight(String(prev.lastWeight));
+          setSerieReps(String(prev.lastReps));
+        } else {
+          setSerieWeight("");
+          setSerieReps("");
+        }
+      }
+    }
+  }, [expandedEx, sessionExs]);
+
   // ── handlers de séries ───────────────────────────────────────
   const handleAddSet = (exIdx) => {
     const w = parseFloat(serieWeight);
@@ -276,8 +366,7 @@ export default function WorkoutTab({
         i === exIdx ? { ...ex, sets: [...ex.sets, { type: serieType, weight: w, reps: r }] } : ex
       )
     );
-    setSerieWeight("");
-    setSerieReps("");
+    // Não limpa mais os inputs para permitir adicionar séries idênticas rapidamente
   };
 
   const handleRemoveSet = (exIdx, setIdx) => {
@@ -298,9 +387,14 @@ export default function WorkoutTab({
 
   const handleAddExToSession = (name) => {
     if (sessionExs.some((e) => e.name === name)) return;
-    setSessionExs((prev) => [...prev, { name, sets: [] }]);
+    setSessionExs((prev) => {
+      const newExs = [...prev, { name, sets: [] }];
+      // Auto-expande o novo card de exercício
+      setExpandedEx(newExs.length - 1);
+      return newExs;
+    });
     setSessionStarted(true);
-    setShowAddEx(false);
+    // O painel agora fica aberto para permitir múltiplos cadastros
     setExSearch("");
   };
 
@@ -495,6 +589,28 @@ export default function WorkoutTab({
                       <Plus size={12} /> {`Criar e adicionar "${exSearch.trim()}"`}
                     </button>
                   )}
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      fontSize: "12px",
+                      marginTop: "10px",
+                      background: "#f97316",
+                      color: "#fff",
+                      fontWeight: "bold",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "4px",
+                      cursor: "pointer",
+                      border: "none"
+                    }}
+                    onClick={() => setShowAddEx(false)}
+                  >
+                    Concluir
+                  </button>
                 </div>
               )}
             </div>
@@ -506,6 +622,12 @@ export default function WorkoutTab({
             const renderExCard = (ex, exIdx) => {
               const isOpen = expandedEx === exIdx;
               const prev = getPrevPerf(ex.name);
+              
+              // Calcular volume total da sessão atual para o exercício
+              const totalVolume = ex.sets
+                .filter(s => s.type === "valida" || s.type === "pap")
+                .reduce((acc, s) => acc + (s.weight * s.reps), 0);
+
               // Resumo por tipo de série
               const setsByType = SET_TYPES.map((t) => {
                 const ofType = ex.sets.filter((x) => x.type === t.id);
@@ -513,81 +635,171 @@ export default function WorkoutTab({
                 return { ...t, count: ofType.length, vol };
               }).filter((t) => t.count > 0);
 
+              const isDragged = draggedExIdx === exIdx;
               return (
-                <div key={exIdx} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${isOpen ? "#f97316" + "50" : "rgba(255,255,255,0.07)"}`, borderRadius: "16px", overflow: "hidden", marginBottom: "8px", transition: "border-color 0.2s" }}>
+                <div key={exIdx} 
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedExIdx === null || draggedExIdx === exIdx) return;
+                    const updated = [...sessionExs];
+                    const [draggedItem] = updated.splice(draggedExIdx, 1);
+                    updated.splice(exIdx, 0, draggedItem);
+                    setSessionExs(updated);
+                    setDraggedExIdx(null);
+                  }}
+                  style={{ 
+                    background: isOpen ? "linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%)" : "rgba(255, 255, 255, 0.02)", 
+                    border: `1px solid ${isOpen ? "rgba(249, 115, 22, 0.4)" : "rgba(255, 255, 255, 0.06)"}`, 
+                    borderRadius: "16px", 
+                    overflow: "hidden", 
+                    marginBottom: "10px", 
+                    transition: "all 0.2s ease-in-out",
+                    boxShadow: isOpen ? "0 8px 30px rgba(0, 0, 0, 0.35), 0 0 15px rgba(249, 115, 22, 0.06)" : "none",
+                    opacity: isDragged ? 0.35 : 1,
+                  }}
+                >
 
                   {/* Cabeçalho — toca para abrir/fechar */}
                   <div onClick={() => setExpandedEx(isOpen ? null : exIdx)}
-                    style={{ padding: "12px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: "700", fontSize: "13px" }}>{ex.name}</div>
+                    style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+                      <div 
+                        draggable={true}
+                        onDragStart={(e) => {
+                          setDraggedExIdx(exIdx);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragEnd={() => {
+                          setDraggedExIdx(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()} // Prevent expand/collapse when dragging
+                        style={{ cursor: "grab", display: "flex", alignItems: "center", padding: "4px 2px" }}
+                      >
+                        <GripVertical size={16} style={{ color: "rgba(255,255,255,0.2)" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: "700", fontSize: "14px", color: isOpen ? "#f97316" : "#fff", transition: "color 0.2s" }}>{ex.name}</div>
                       {ex.sets.length > 0 ? (
-                        /* Resumo por tipo: "2 Válidas 1600kg · 1 Aq. 480kg" */
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "4px" }}>
-                          {setsByType.map((t) => (
-                            <span key={t.id} style={{ fontSize: "10px", fontWeight: "700", color: t.color, display: "flex", alignItems: "center", gap: "3px" }}>
-                              {setTypeIcon(t.id, 10)}
-                              {t.count}× {t.label}{t.vol > 0 ? ` · ${t.vol}kg` : ""}
-                            </span>
-                          ))}
+                        <div style={{ fontSize: "11px", marginTop: "3px", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ color: "#f97316", fontWeight: "700" }}>{ex.sets.length} {ex.sets.length === 1 ? 'série' : 'séries'}</span>
+                          <span>•</span>
+                          <span>Volume: <strong>{totalVolume} kg</strong></span>
                         </div>
                       ) : (
-                        <div style={{ fontSize: "10px", marginTop: "2px", color: "rgba(255,255,255,0.3)" }}>
-                          {prev ? `Última: ${prev.lastWeight}kg×${prev.lastReps}` : "Sem registro anterior"}
+                        <div style={{ fontSize: "11px", marginTop: "3px", color: "rgba(255,255,255,0.3)" }}>
+                          {prev ? `Melhor Anterior: ${prev.lastWeight}kg × ${prev.lastReps} (Vol: ${prev.vol}kg)` : "Nenhuma série registrada hoje"}
                         </div>
                       )}
                     </div>
-                    <div className="row" style={{ gap: "5px" }} onClick={(e) => e.stopPropagation()}>
-                      <button className="btn btn-ghost" style={{ padding: "4px 7px" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)}><History size={12} /></button>
-                      <button className="btn-danger" style={{ padding: "4px 7px", display: "flex", alignItems: "center" }} onClick={() => handleRemoveEx(exIdx)}><X size={11} /></button>
+                  </div>
+                    <div className="row" style={{ gap: "6px", background: "rgba(255,255,255,0.03)", borderRadius: "20px", padding: "3px 6px" }} onClick={(e) => e.stopPropagation()}>
+                      <button className="btn btn-ghost" style={{ width: "26px", height: "26px", padding: "0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => openGuideModal && openGuideModal(ex.name)} title="Guia de Execução"><BookOpen size={12} /></button>
+                      <button className="btn btn-ghost" style={{ width: "26px", height: "26px", padding: "0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)} title="Histórico"><History size={12} /></button>
+                      <button className="btn-danger" style={{ width: "26px", height: "26px", padding: "0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => handleRemoveEx(exIdx)} title="Remover"><X size={11} /></button>
                     </div>
                   </div>
 
-                  {/* Séries já registradas — com volume individual */}
+                  {/* Séries já registradas — Grid Layout */}
                   {ex.sets.length > 0 && (
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                      {ex.sets.map((set, sIdx) => {
-                        const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                        return (
-                          <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                            <div className="row" style={{ gap: "7px" }}>
-                              <span className="tag" style={{ background: ts.color + "22", color: ts.color, display: "flex", alignItems: "center", gap: "3px", fontSize: "10px" }}>{setTypeIcon(ts.id, 10)} {ts.label}</span>
-                              <span style={{ fontWeight: "700", fontSize: "13px" }}>
-                                {set.weight}kg <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "400" }}>×</span> {set.reps}
-                              </span>
+                      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1.5fr 1.5fr 0.5fr", gap: "8px", padding: "6px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "9px", fontWeight: "800", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        <span>Série</span>
+                        <span style={{ textAlign: "center" }}>Tipo</span>
+                        <span style={{ textAlign: "right" }}>Carga</span>
+                        <span style={{ textAlign: "right" }}>Reps</span>
+                        <span></span>
+                      </div>
+                      <div style={{ maxHeight: "250px", overflowY: "auto" }}>
+                        {ex.sets.map((set, sIdx) => {
+                          const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                          return (
+                            <div key={sIdx} style={{ 
+                              display: "grid", 
+                              gridTemplateColumns: "1.2fr 1.5fr 1.5fr 1.5fr 0.5fr", 
+                              gap: "8px", 
+                              alignItems: "center", 
+                              padding: "8px 16px", 
+                              borderBottom: "1px solid rgba(255,255,255,0.03)", 
+                              background: sIdx % 2 === 0 ? "rgba(255,255,255,0.005)" : "transparent" 
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span style={{ display: "inline-flex", width: "18px", height: "18px", borderRadius: "50%", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.8)", fontSize: "10px", fontWeight: "800", alignItems: "center", justifyContent: "center" }}>{sIdx + 1}</span>
+                              </div>
+                              <span style={{ textTransform: "uppercase", fontSize: "8px", fontWeight: "900", color: ts.color, background: ts.color + "15", padding: "2px 6px", borderRadius: "4px", textAlign: "center", width: "fit-content", justifySelf: "center" }}>{ts.label}</span>
+                              <span style={{ fontSize: "12px", fontWeight: "700", color: "#fff", textAlign: "right" }}>{set.weight}<span style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", fontWeight: "500", marginLeft: "1px" }}>kg</span></span>
+                              <span style={{ fontSize: "12px", fontWeight: "700", color: "#fff", textAlign: "right" }}>{set.reps}<span style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", fontWeight: "500", marginLeft: "1px" }}>reps</span></span>
+                              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                <button style={{ background: "none", border: "none", color: "rgba(239,68,68,0.5)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={11} /></button>
+                              </div>
                             </div>
-                            <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", padding: "2px" }} onClick={() => handleRemoveSet(exIdx, sIdx)}><X size={12} /></button>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  {/* Formulário expansível — aparece ao tocar no card */}
+                  {/* Formulário expansível inline */}
                   {isOpen && (
-                    <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                    <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.015)" }}>
                       {/* Tipo de série */}
-                      <div style={{ display: "flex", gap: "5px", marginBottom: "9px" }}>
+                      <div style={{ display: "flex", gap: "4px", marginBottom: "10px" }}>
                         {SET_TYPES.map((t) => (
                           <button key={t.id} onClick={() => setSerieType(t.id)}
-                            style={{ flex: 1, padding: "6px 2px", borderRadius: "8px", border: serieType === t.id ? "none" : "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: "10px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
-                              background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
-                            {setTypeIcon(t.id, 11)} {t.label}
+                            style={{ 
+                              flex: 1, 
+                              padding: "6px 2px", 
+                              borderRadius: "6px", 
+                              border: "none", 
+                              cursor: "pointer", 
+                              fontSize: "9px", 
+                              fontWeight: "700", 
+                              fontFamily: "'DM Sans',sans-serif",
+                              background: serieType === t.id ? t.color : "rgba(255,255,255,0.04)", 
+                              color: serieType === t.id ? "#fff" : "rgba(255,255,255,0.4)", 
+                              display: "flex", 
+                              alignItems: "center", 
+                              justifyContent: "center", 
+                              gap: "2px",
+                              transition: "all 0.15s" 
+                            }}>
+                            {setTypeIcon(t.id, 10)} {t.label}
                           </button>
                         ))}
                       </div>
                       {/* Peso × Reps + botão confirmar */}
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <input type="number" placeholder="Peso kg" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()}
-                          style={{ flex: 1, textAlign: "center" }} />
-                        <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: "700", flexShrink: 0 }}>×</span>
-                        <input id={`reps-${exIdx}`} type="number" placeholder="Reps" value={serieReps} onChange={(e) => setSerieReps(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)}
-                          style={{ flex: 1, textAlign: "center" }} />
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <div style={{ flex: 1, position: "relative" }}>
+                          <input type="number" placeholder="Carga" value={serieWeight} onChange={(e) => setSerieWeight(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && document.getElementById(`reps-${exIdx}`)?.focus()}
+                            style={{ width: "100%", padding: "10px", paddingRight: "30px", fontSize: "13px", fontWeight: "700", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", textAlign: "center" }} />
+                          <span style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", fontSize: "9px", color: "rgba(255,255,255,0.3)", fontWeight: "700" }}>kg</span>
+                        </div>
+                        <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: "700", fontSize: "14px" }}>×</span>
+                        <div style={{ flex: 1, position: "relative" }}>
+                          <input id={`reps-${exIdx}`} type="number" placeholder="Reps" value={serieReps} onChange={(e) => setSerieReps(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleAddSet(exIdx)}
+                            style={{ width: "100%", padding: "10px", paddingRight: "38px", fontSize: "13px", fontWeight: "700", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", textAlign: "center" }} />
+                          <span style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", fontSize: "9px", color: "rgba(255,255,255,0.3)", fontWeight: "700" }}>reps</span>
+                        </div>
                         <button onClick={() => handleAddSet(exIdx)}
-                          style={{ flexShrink: 0, width: "42px", height: "42px", borderRadius: "12px", border: "none", cursor: "pointer", background: "#f97316", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <CheckCircle2 size={18} />
+                          style={{ 
+                            flexShrink: 0, 
+                            width: "42px", 
+                            height: "42px", 
+                            borderRadius: "10px", 
+                            border: "none", 
+                            cursor: "pointer", 
+                            background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", 
+                            color: "#fff", 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center",
+                            boxShadow: "0 4px 12px rgba(249, 115, 22, 0.25)"
+                          }}>
+                          <Plus size={18} />
                         </button>
                       </div>
                     </div>
@@ -611,10 +823,9 @@ export default function WorkoutTab({
                   return (
                     <div key={muscle} style={{ marginBottom: "14px" }}>
                       {/* Header do músculo */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ height: "1px", flex: 1, background: "rgba(249,115,22,0.35)" }} />
-                        <span style={{ fontSize: "11px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px", whiteSpace: "nowrap" }}>{muscle}</span>
-                        <div style={{ height: "1px", flex: 1, background: "rgba(249,115,22,0.35)" }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px", marginTop: "12px" }}>
+                        <div style={{ width: "3px", height: "12px", background: "#f97316", borderRadius: "2px" }} />
+                        <span style={{ fontSize: "11px", fontWeight: "800", color: "#f97316", textTransform: "uppercase", letterSpacing: "0.8px" }}>{muscle}</span>
                       </div>
                       {inGroup.map((ex) => {
                         const exIdx = sessionExs.indexOf(ex);
@@ -627,10 +838,9 @@ export default function WorkoutTab({
                 {/* Outros (exercícios customizados não mapeados) */}
                 {sessionExs.some((ex, i) => !allRendered.has(i)) && (
                   <div style={{ marginBottom: "14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                      <div style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px", marginTop: "12px" }}>
+                      <div style={{ width: "3px", height: "12px", background: "rgba(255,255,255,0.3)", borderRadius: "2px" }} />
                       <span style={{ fontSize: "11px", fontWeight: "800", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.8px" }}>Outros</span>
-                      <div style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }} />
                     </div>
                     {sessionExs.map((ex, exIdx) => !allRendered.has(exIdx) ? renderExCard(ex, exIdx) : null)}
                   </div>
@@ -859,7 +1069,7 @@ export default function WorkoutTab({
 
           {/* Saved workouts for selected date */}
           {(() => {
-            const saved = state.workoutLogs.filter((w) => w.date === sessionDate);
+            const saved = (state?.workoutLogs || []).filter((w) => w.date === sessionDate);
             if (!saved.length) return null;
             return (
               <div className="card" style={{ marginTop: "12px" }}>
@@ -1113,7 +1323,7 @@ export default function WorkoutTab({
           </div>
           {activeHistDate && (
             <div>
-              {state.workoutLogs.filter((w) => w.date === activeHistDate).map((w) => (
+              {(state?.workoutLogs || []).filter((w) => w.date === activeHistDate).map((w) => (
                 <div className="card" key={w.id}>
                   <div className="row-sb" style={{ marginBottom: "10px" }}>
                     <span className="syne" style={{ fontWeight: "700", fontSize: "16px" }}>{w.type}</span>
@@ -1175,7 +1385,7 @@ export default function WorkoutTab({
                   {w.notes && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "6px", fontStyle: "italic" }}>Obs: {w.notes}</div>}
                 </div>
               ))}
-              {!state.workoutLogs.filter((w) => w.date === activeHistDate).length && (
+              {!(state?.workoutLogs || []).filter((w) => w.date === activeHistDate).length && (
                 <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "24px" }}>Sem treinos gravados nesta data.</div>
               )}
             </div>

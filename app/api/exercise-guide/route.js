@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import exercisesDb from "../../../lib/exercises-ptbr.json";
 
 // Rich local database of fallbacks for the core exercises to guarantee immediate, offline-compatible operation!
 const FALLBACK_EXERCISES = {
@@ -152,10 +153,95 @@ export async function GET(request) {
   );
 
   if (matchedKey) {
+    const getDbMatchName = (exName) => {
+      const map = {
+        "Puxada Frente": "Pulldown com Pegada Larga",
+        "Desenvolvimento": "Desenvolvimento de Ombros com Halteres",
+        "Tríceps Corda": "Tríceps Corda Acima da Cabeça",
+        "Supino Reto": "Supino Reto com Barra - Pegada Média",
+        "Agachamento Livre": "Agachamento Livre com Barra",
+        "Rosca Direta": "Rosca Direta com Barra"
+      };
+      return map[exName] || exName;
+    };
+    const searchName = getDbMatchName(matchedKey);
+    const normalizedSearch = normalize(searchName);
+    const dbMatch = exercisesDb.find(
+      (ex) => normalize(ex.name) === normalizedSearch || normalizedSearch.includes(normalize(ex.name)) || normalize(ex.name).includes(normalizedSearch)
+    );
     return NextResponse.json({
       success: true,
-      guide: FALLBACK_EXERCISES[matchedKey],
+      guide: {
+        ...FALLBACK_EXERCISES[matchedKey],
+        images: dbMatch ? dbMatch.images : []
+      },
       source: "local",
+    });
+  }
+
+  // 1.5. Try to search in the downloaded Pt-Br exercises database
+  const dbMatch = exercisesDb.find(
+    (ex) => normalize(ex.name) === normalizedQuery || normalizedQuery.includes(normalize(ex.name)) || normalize(ex.name).includes(normalizedQuery)
+  );
+
+  if (dbMatch) {
+    const translateMuscle = (m) => {
+      const dict = {
+        'abdominais': 'Abdominais',
+        'isquiotibiais': 'Isquiotibiais (Posterior de Coxa)',
+        'adutores': 'Adutores',
+        'quadriceps': 'Quadríceps',
+        'biceps': 'Bíceps',
+        'ombros': 'Ombros (Deltoides)',
+        'peito': 'Peito (Peitoral)',
+        'meio-das-costas': 'Dorsal (Meio das Costas)',
+        'panturrilhas': 'Panturrilhas',
+        'gluteos': 'Glúteos',
+        'inferior-das-costas': 'Lombar (Inferior das Costas)',
+        'dorsais': 'Dorsais / Asa',
+        'triceps': 'Tríceps',
+        'trapezio': 'Trapézio',
+        'antebracos': 'Antebraços',
+        'pescoco': 'Pescoço',
+        'abdutores': 'Abdutores'
+      };
+      return dict[m] || m;
+    };
+
+    const translateEquipment = (eq) => {
+      const dict = {
+        'peso-do-corpo': 'Peso do corpo',
+        'maquina': 'Máquina',
+        'outros': 'Outros equipamentos',
+        'rolo-de-espuma': 'Rolo de espuma',
+        'kettlebell': 'Kettlebell',
+        'halteres': 'Halteres',
+        'cabo': 'Polia/Cabo',
+        'barra': 'Barra',
+        'faixas': 'Faixas elásticas',
+        'bola-medicinal': 'Bola medicinal',
+        'bola-de-exercicio': 'Bola de exercício',
+        'barra-w': 'Barra W'
+      };
+      return dict[eq] || eq || 'Peso do corpo';
+    };
+
+    const setupSteps = dbMatch.instructions.slice(0, Math.ceil(dbMatch.instructions.length / 2));
+    const executionSteps = dbMatch.instructions.slice(Math.ceil(dbMatch.instructions.length / 2));
+
+    return NextResponse.json({
+      success: true,
+      guide: {
+        musclePrimary: dbMatch.primaryMuscles.map(translateMuscle).join(", "),
+        muscleSecondary: dbMatch.secondaryMuscles.map(translateMuscle).join(", "),
+        setup: setupSteps.length > 0 ? setupSteps : ["Posicione-se conforme anatomia do exercício."],
+        execution: executionSteps.length > 0 ? executionSteps : ["Realize o movimento com amplitude completa."],
+        instructions: dbMatch.instructions,
+        images: dbMatch.images || [],
+        mistakes: ["Executar o movimento sem controle ou com excesso de carga."],
+        proTip: `Foque no controle de movimento utilizando o equipamento: ${translateEquipment(dbMatch.equipment)}.`
+      },
+      source: "local-db"
     });
   }
 

@@ -16,6 +16,7 @@ import ScannerModal from "@/components/ScannerModal";
 import EditDayModal from "@/components/EditDayModal";
 import HistoryModal from "@/components/HistoryModal";
 import ExerciseGuideModal from "@/components/ExerciseGuideModal";
+import exercisesDb from "@/lib/exercises-ptbr.json";
 
 // ── SYSTEM CONSTANTS ─────────────────────────────────────────────────────────
 const DEFAULT_PROFILE = {
@@ -521,10 +522,20 @@ export default function Home() {
 
   // ── DYNAMIC METABOLIC CALCULATION UTILS ─────────────────────────────────────
   const calculateMetabolicTargets = (p) => {
-    const profile = p || state.profile || DEFAULT_PROFILE;
+    const rawProfile = p || state.profile || DEFAULT_PROFILE;
+    const profile = {
+      weight: parseFloat(rawProfile.weight) || DEFAULT_PROFILE.weight,
+      height: parseFloat(rawProfile.height) || DEFAULT_PROFILE.height,
+      age: parseInt(rawProfile.age) || DEFAULT_PROFILE.age,
+      current_bf: parseFloat(rawProfile.current_bf) || DEFAULT_PROFILE.current_bf,
+      goal_bf: parseFloat(rawProfile.goal_bf) || DEFAULT_PROFILE.goal_bf,
+      activityFactor: parseFloat(rawProfile.activityFactor) || DEFAULT_PROFILE.activityFactor,
+      gender: rawProfile.gender || DEFAULT_PROFILE.gender,
+      proteinFactor: parseFloat(rawProfile.proteinFactor) || DEFAULT_PROFILE.proteinFactor
+    };
     
     // TMB (Mifflin-St Jeor)
-    let tmb = 10 * profile.weight + 6.25 * (profile.height || 176) - 5 * profile.age;
+    let tmb = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age;
     if (profile.gender === "female") {
       tmb -= 161;
     } else {
@@ -532,7 +543,7 @@ export default function Home() {
     }
     
     // TDEE
-    const tdee = Math.round(tmb * (parseFloat(profile.activityFactor) || 1.725));
+    const tdee = Math.round(tmb * profile.activityFactor);
     
     // Weekly safe weight loss target (0.7% of body weight)
     const weeklyWeightLossTargetKg = profile.weight * 0.007;
@@ -622,12 +633,48 @@ export default function Home() {
 
   const getExercises = (group) => {
     if (!group) return [];
+    
+    const mapMuscleToGroup = (ex) => {
+      const primary = ex.primaryMuscles?.[0];
+      if (!primary) return null;
+      const nameNorm = ex.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (primary === 'ombros') {
+        const isRearDelt = nameNorm.includes('invertido') || 
+                           nameNorm.includes('inverso') || 
+                           nameNorm.includes('posterior') || 
+                           nameNorm.includes('rear delt') ||
+                           nameNorm.includes('face pull');
+        if (isRearDelt) return 'Pull';
+        return 'Push';
+      }
+      const pushMuscles = ['peito', 'triceps', 'trapezio'];
+      const pullMuscles = ['dorsais', 'meio-das-costas', 'inferior-das-costas', 'biceps', 'antebracos', 'pescoco'];
+      const legsMuscles = ['quadriceps', 'isquiotibiais', 'gluteos', 'panturrilhas', 'adutores', 'abdutores', 'abdominais'];
+      
+      if (pushMuscles.includes(primary)) return 'Push';
+      if (pullMuscles.includes(primary)) return 'Pull';
+      if (legsMuscles.includes(primary)) return 'Legs';
+      return null;
+    };
+
+    const dbExercises = exercisesDb.filter(ex => {
+      const primary = ex.primaryMuscles?.[0];
+      const mapped = mapMuscleToGroup(ex);
+      if (group === 'Push') return mapped === 'Push';
+      if (group === 'Pull') return mapped === 'Pull';
+      if (group === 'Legs') return mapped === 'Legs';
+      if (group === 'Upper') return mapped === 'Push' || mapped === 'Pull';
+      if (group === 'Lower') return mapped === 'Legs' || primary === 'biceps';
+      return false;
+    }).map(ex => ex.name);
+
     return [
       ...new Set([
         ...(DEFAULT_EXERCISES[group] || []),
+        ...dbExercises,
         ...((state.customExercises && state.customExercises[group]) || []),
       ]),
-    ];
+    ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   };
 
   // ── STATE MUTATIONS ────────────────────────────────────────────────────────

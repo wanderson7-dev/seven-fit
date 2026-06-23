@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal } from "react-native";
 import { AppContext } from "../context/AppContext";
 import { Calendar, Settings, User, X } from "lucide-react-native";
@@ -9,12 +9,23 @@ export default function SettingsTab() {
   const { state, saveProfile, saveDayEdit } = useContext(AppContext);
 
   // Profile forms state
-  const [weight, setWeight] = useState(String(state.profile.weight));
-  const [height, setHeight] = useState(String(state.profile.height || 176));
-  const [age, setAge] = useState(String(state.profile.age));
-  const [currentBf, setCurrentBf] = useState(String(state.profile.current_bf));
-  const [goalBf, setGoalBf] = useState(String(state.profile.goal_bf));
-  const [proteinFactor, setProteinFactor] = useState(String(state.profile.proteinFactor || 1.8));
+  const [weight, setWeight] = useState(state.profile?.weight !== undefined && state.profile?.weight !== null ? String(state.profile.weight) : "87");
+  const [height, setHeight] = useState(state.profile?.height !== undefined && state.profile?.height !== null ? String(state.profile.height) : "176");
+  const [age, setAge] = useState(state.profile?.age !== undefined && state.profile?.age !== null ? String(state.profile.age) : "23");
+  const [currentBf, setCurrentBf] = useState(state.profile?.current_bf !== undefined && state.profile?.current_bf !== null ? String(state.profile.current_bf) : "19");
+  const [goalBf, setGoalBf] = useState(state.profile?.goal_bf !== undefined && state.profile?.goal_bf !== null ? String(state.profile.goal_bf) : "12");
+  const [proteinFactor, setProteinFactor] = useState(state.profile?.proteinFactor !== undefined && state.profile?.proteinFactor !== null ? String(state.profile.proteinFactor) : "1.8");
+
+  useEffect(() => {
+    if (state.profile) {
+      setWeight(state.profile.weight !== undefined && state.profile.weight !== null ? String(state.profile.weight) : "87");
+      setHeight(state.profile.height !== undefined && state.profile.height !== null ? String(state.profile.height) : "176");
+      setAge(state.profile.age !== undefined && state.profile.age !== null ? String(state.profile.age) : "23");
+      setCurrentBf(state.profile.current_bf !== undefined && state.profile.current_bf !== null ? String(state.profile.current_bf) : "19");
+      setGoalBf(state.profile.goal_bf !== undefined && state.profile.goal_bf !== null ? String(state.profile.goal_bf) : "12");
+      setProteinFactor(state.profile.proteinFactor !== undefined && state.profile.proteinFactor !== null ? String(state.profile.proteinFactor) : "1.8");
+    }
+  }, [state.profile]);
 
   // Edit Day Modal State
   const [editIndex, setEditIndex] = useState(null);

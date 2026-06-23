@@ -18,10 +18,15 @@ export default function ProgressTab() {
   const weightLogs = [...(state.weightLogs || [])].reverse();
 
   // BF Progress calculations
-  const startingWeight = state.weightLogs.length > 0 ? state.weightLogs[0].value : state.profile.weight;
-  const currentWeight = state.weightLogs.length > 0 ? state.weightLogs[state.weightLogs.length - 1].value : state.profile.weight;
+  const profile = state.profile || {};
+  const weight = parseFloat(profile.weight) || 87;
+  const current_bf = parseFloat(profile.current_bf) || 19;
+  const goal_bf = parseFloat(profile.goal_bf) || 12;
+
+  const startingWeight = (state.weightLogs || []).length > 0 ? state.weightLogs[0].value : weight;
+  const currentWeight = (state.weightLogs || []).length > 0 ? state.weightLogs[state.weightLogs.length - 1].value : weight;
   const totalWeightLost = Math.max(0, startingWeight - currentWeight);
-  const estimatedBF = Math.max(state.profile.goal_bf, state.profile.current_bf - (totalWeightLost * 0.15));
+  const estimatedBF = Math.max(goal_bf, current_bf - (totalWeightLost * 0.15));
 
   // Vision / Gallery photo selector
   const handleSelectPhoto = async (angle, useCamera = false) => {

@@ -55,7 +55,16 @@ export default function WorkoutTab() {
   const [histWrkDate, setHistWrkDate] = useState("");
 
   const todayDOW = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"][new Date(sessionDate + "T12:00:00").getDay()];
-  const sched = state.schedule.find((x) => x.day === todayDOW) || state.schedule[6];
+  const schedule = state?.schedule || [
+    { day: "Seg", type: "Push", color: "#f97316", calType: "normal", group: "Push" },
+    { day: "Ter", type: "Pull", color: "#3b82f6", calType: "normal", group: "Pull" },
+    { day: "Qua", type: "Legs 🦵", color: "#8b5cf6", calType: "heavy", group: "Legs" },
+    { day: "Qui", type: "Jiu-Jitsu 🥋", color: "#10b981", calType: "normal", group: "Upper" },
+    { day: "Sex", type: "Upper", color: "#f59e0b", calType: "normal", group: "Upper" },
+    { day: "Sab", type: "Lower 🦵", color: "#ec4899", calType: "heavy", group: "Lower" },
+    { day: "Dom", type: "Descanso 🍕", color: "#6b7280", calType: "free", group: null }
+  ];
+  const sched = schedule.find((x) => x.day === todayDOW) || schedule[6];
   const activeGroup = selectedGroup || sched.group;
 
   const existingWorkout = (state.workoutLogs || []).find((w) => w.date === sessionDate);
@@ -87,6 +96,43 @@ export default function WorkoutTab() {
     return <CheckCircle2 size={size} color="#10b981" />;
   };
 
+  // Performance anterior (histórico)
+  const getPrevPerf = (exName) => {
+    const logs = state.workoutLogs || [];
+    const all = [];
+    logs.forEach((w) => w.exercises.forEach((ex) => {
+      if (ex.name === exName) all.push({ date: w.date, sets: ex.sets });
+    }));
+    if (!all.length) return null;
+    const last = all[all.length - 1];
+    const vs = last.sets.filter((x) => x.type === "valida");
+    if (!vs.length) return null;
+    const mx = vs.reduce((a, x) => (x.weight > a.weight ? x : a), vs[0]);
+    const vol = vs.reduce((a, x) => a + x.weight * x.reps, 0);
+    return { lastWeight: mx.weight, lastReps: mx.reps, vol };
+  };
+
+  // Efeito para auto-preencher carga/reps ao expandir card ou adicionar exercício
+  useEffect(() => {
+    if (expandedEx !== null && expandedEx !== undefined && sessionExs[expandedEx]) {
+      const ex = sessionExs[expandedEx];
+      if (ex.sets && ex.sets.length > 0) {
+        const lastSet = ex.sets[ex.sets.length - 1];
+        setSerieWeight(String(lastSet.weight));
+        setSerieReps(String(lastSet.reps));
+      } else {
+        const prev = getPrevPerf(ex.name);
+        if (prev) {
+          setSerieWeight(String(prev.lastWeight));
+          setSerieReps(String(prev.lastReps));
+        } else {
+          setSerieWeight("");
+          setSerieReps("");
+        }
+      }
+    }
+  }, [expandedEx, sessionExs]);
+
   const handleAddSet = (exIdx) => {
     const w = parseFloat(serieWeight);
     const r = parseInt(serieReps);
@@ -98,8 +144,7 @@ export default function WorkoutTab() {
         i === exIdx ? { ...ex, sets: [...ex.sets, { type: serieType, weight: w, reps: r }] } : ex
       )
     );
-    setSerieWeight("");
-    setSerieReps("");
+    // Não limpa mais os inputs para permitir registrar séries idênticas rapidamente
   };
 
   const handleRemoveSet = (exIdx, setIdx) => {
@@ -117,11 +162,34 @@ export default function WorkoutTab() {
     if (expandedEx === exIdx) setExpandedEx(null);
   };
 
+  const handleMoveEx = (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= sessionExs.length) return;
+    setSessionStarted(true);
+    setSessionExs((prev) => {
+      const updated = [...prev];
+      const temp = updated[index];
+      updated[index] = updated[newIndex];
+      updated[newIndex] = temp;
+      return updated;
+    });
+    if (expandedEx === index) {
+      setExpandedEx(newIndex);
+    } else if (expandedEx === newIndex) {
+      setExpandedEx(index);
+    }
+  };
+
   const handleAddExToSession = (name) => {
     if (sessionExs.some((e) => e.name === name)) return;
-    setSessionExs((prev) => [...prev, { name, sets: [] }]);
+    setSessionExs((prev) => {
+      const newExs = [...prev, { name, sets: [] }];
+      // Auto-expande o novo card de exercício
+      setExpandedEx(newExs.length - 1);
+      return newExs;
+    });
     setSessionStarted(true);
-    setShowAddEx(false);
+    // O painel fica aberto para permitir múltiplos cadastros
     setExSearch("");
   };
 
@@ -302,7 +370,7 @@ export default function WorkoutTab() {
                         onChangeText={setExSearch}
                       />
                     </View>
-                    <View style={styles.searchList}>
+                    <ScrollView nestedScrollEnabled={true} style={styles.searchList}>
                       {getExercises(activeGroup)
                         .filter((name) => !exSearch || name.toLowerCase().includes(exSearch.toLowerCase()))
                         .map((name) => {
@@ -318,7 +386,24 @@ export default function WorkoutTab() {
                             </TouchableOpacity>
                           );
                         })}
-                    </View>
+                    </ScrollView>
+                    {exSearch && !getExercises(activeGroup).some((name) => name.toLowerCase() === exSearch.trim().toLowerCase()) && (
+                      <TouchableOpacity
+                        style={styles.createExBtn}
+                        onPress={() => {
+                          const newName = exSearch.trim();
+                          if (saveCustomExercise) {
+                            saveCustomExercise(activeGroup, newName, "Outros");
+                          }
+                          handleAddExToSession(newName);
+                        }}
+                      >
+                        <Text style={styles.createExBtnText}>+ Criar e adicionar "{exSearch.trim()}"</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.doneSearchBtn} onPress={() => setShowAddEx(false)}>
+                      <Text style={styles.doneSearchBtnText}>Concluir</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -328,6 +413,11 @@ export default function WorkoutTab() {
             {sessionExs.map((ex, exIdx) => {
               const isOpen = expandedEx === exIdx;
               
+              // Calcular volume total da sessão atual para o exercício
+              const totalVolume = ex.sets
+                .filter(s => s.type === "valida" || s.type === "pap")
+                .reduce((acc, s) => acc + (s.weight * s.reps), 0);
+
               return (
                 <View key={exIdx} style={[styles.exCard, isOpen && styles.exCardOpen]}>
                   {/* Card Header toggler */}
@@ -336,32 +426,78 @@ export default function WorkoutTab() {
                     onPress={() => setExpandedEx(isOpen ? null : exIdx)}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.exCardName}>{ex.name}</Text>
-                      <Text style={styles.exCardSetsCount}>{ex.sets.length} séries registradas</Text>
+                      <Text style={[styles.exCardName, isOpen && { color: "#f97316" }]}>{ex.name}</Text>
+                      {ex.sets.length > 0 ? (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#f97316" }}>
+                            {ex.sets.length} {ex.sets.length === 1 ? 'série' : 'séries'}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}> · Volume: </Text>
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.8)" }}>{totalVolume} kg</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.exCardSetsCount}>Toque para registrar séries</Text>
+                      )}
                     </View>
-                    <TouchableOpacity style={styles.deleteExBtn} onPress={() => handleRemoveEx(exIdx)}>
-                      <X size={14} color="#f87171" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }} onStartShouldSetResponder={() => true} ResponderRelease={(e) => e.stopPropagation()}>
+                      {exIdx > 0 && (
+                        <TouchableOpacity style={{ padding: 6 }} onPress={() => handleMoveEx(exIdx, -1)}>
+                          <ChevronUp size={16} color="rgba(255,255,255,0.4)" />
+                        </TouchableOpacity>
+                      )}
+                      {exIdx < sessionExs.length - 1 && (
+                        <TouchableOpacity style={{ padding: 6 }} onPress={() => handleMoveEx(exIdx, 1)}>
+                          <ChevronDown size={16} color="rgba(255,255,255,0.4)" />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity style={styles.deleteExBtn} onPress={() => handleRemoveEx(exIdx)}>
+                        <X size={14} color="#f87171" />
+                      </TouchableOpacity>
+                    </View>
                   </TouchableOpacity>
 
-                  {/* Logged sets list */}
-                  {ex.sets.map((set, sIdx) => {
-                    const typeSpec = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
-                    return (
-                      <View key={sIdx} style={styles.setRow}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          {setTypeIcon(set.type)}
-                          <Text style={styles.setText}>{typeSpec.label}</Text>
-                        </View>
-                        <Text style={styles.setTextVal}>{set.weight} kg  x  {set.reps} reps</Text>
-                        <TouchableOpacity onPress={() => handleRemoveSet(exIdx, sIdx)}>
-                          <X size={12} color="rgba(255,255,255,0.3)" />
-                        </TouchableOpacity>
+                  {/* Logged sets list — Grid layout */}
+                  {ex.sets.length > 0 && (
+                    <View style={styles.setsContainer}>
+                      <View style={styles.setsTableHeader}>
+                        <Text style={[styles.setsTableHeaderText, { flex: 1.2 }]}>Série</Text>
+                        <Text style={[styles.setsTableHeaderText, { flex: 1.5, textAlign: "center" }]}>Tipo</Text>
+                        <Text style={[styles.setsTableHeaderText, { flex: 1.5, textAlign: "right" }]}>Carga</Text>
+                        <Text style={[styles.setsTableHeaderText, { flex: 1.5, textAlign: "right" }]}>Reps</Text>
+                        <Text style={[styles.setsTableHeaderText, { flex: 0.5 }]}></Text>
                       </View>
-                    );
-                  })}
+                      <View style={styles.setsList}>
+                        {ex.sets.map((set, sIdx) => {
+                          const ts = SET_TYPES.find((x) => x.id === set.type) || SET_TYPES[1];
+                          return (
+                            <View key={sIdx} style={[styles.setRow, sIdx % 2 === 0 && { backgroundColor: "rgba(255,255,255,0.01)" }]}>
+                              <View style={{ flex: 1.2, flexDirection: "row", alignItems: "center" }}>
+                                <View style={styles.setNumberBadge}>
+                                  <Text style={styles.setNumberBadgeText}>{sIdx + 1}</Text>
+                                </View>
+                              </View>
+                              <View style={{ flex: 1.5, alignItems: "center" }}>
+                                <View style={[styles.setTagBadge, { backgroundColor: ts.color + "15" }]}>
+                                  <Text style={[styles.setTagBadgeText, { color: ts.color }]}>{ts.label.toUpperCase()}</Text>
+                                </View>
+                              </View>
+                              <Text style={[styles.setRowTextVal, { flex: 1.5, textAlign: "right" }]}>
+                                {set.weight} <Text style={styles.setRowTextSuffix}>kg</Text>
+                              </Text>
+                              <Text style={[styles.setRowTextVal, { flex: 1.5, textAlign: "right" }]}>
+                                {set.reps} <Text style={styles.setRowTextSuffix}>reps</Text>
+                              </Text>
+                              <TouchableOpacity style={{ flex: 0.5, alignItems: "flex-end", padding: 4 }} onPress={() => handleRemoveSet(exIdx, sIdx)}>
+                                <X size={12} color="rgba(239,68,68,0.5)" />
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
 
-                  {/* Inline Form to Add Set */}
+                  {/* Add set form inside card */}
                   {isOpen && (
                     <View style={styles.addSetForm}>
                       <View style={styles.setTypesRow}>
@@ -376,25 +512,31 @@ export default function WorkoutTab() {
                         ))}
                       </View>
                       <View style={styles.setInputRow}>
-                        <TextInput
-                          style={styles.setInput}
-                          keyboardType="numeric"
-                          placeholder="Carga (kg)"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
-                          value={serieWeight}
-                          onChangeText={setSerieWeight}
-                        />
+                        <View style={styles.inputWrapper}>
+                          <TextInput
+                            style={styles.setInput}
+                            keyboardType="numeric"
+                            placeholder="Carga"
+                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            value={serieWeight}
+                            onChangeText={setSerieWeight}
+                          />
+                          <Text style={styles.inputSuffix}>kg</Text>
+                        </View>
                         <Text style={{ color: "rgba(255,255,255,0.4)" }}>x</Text>
-                        <TextInput
-                          style={styles.setInput}
-                          keyboardType="numeric"
-                          placeholder="Reps"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
-                          value={serieReps}
-                          onChangeText={setSerieReps}
-                        />
+                        <View style={styles.inputWrapper}>
+                          <TextInput
+                            style={styles.setInput}
+                            keyboardType="numeric"
+                            placeholder="Reps"
+                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            value={serieReps}
+                            onChangeText={setSerieReps}
+                          />
+                          <Text style={styles.inputSuffix}>reps</Text>
+                        </View>
                         <TouchableOpacity style={styles.confirmSetBtn} onPress={() => handleAddSet(exIdx)}>
-                          <Text style={styles.confirmSetBtnText}>✓</Text>
+                          <Text style={styles.confirmSetBtnText}>+</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -569,7 +711,7 @@ export default function WorkoutTab() {
             </View>
 
             {(() => {
-              const hLogs = state.workoutLogs.filter((w) => w.date === activeHistDate);
+              const hLogs = (state?.workoutLogs || []).filter((w) => w.date === activeHistDate);
               if (hLogs.length === 0) {
                 return (
                   <View style={styles.emptyContainer}>
@@ -808,6 +950,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600"
   },
+  doneSearchBtn: {
+    backgroundColor: "#f97316",
+    borderRadius: 8,
+    paddingVertical: 8,
+    marginTop: 8,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  doneSearchBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  createExBtn: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(249,115,22,0.4)",
+    borderRadius: 8,
+    paddingVertical: 8,
+    marginTop: 8,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  createExBtnText: {
+    color: "#f97316",
+    fontSize: 11,
+    fontWeight: "600"
+  },
   exCard: {
     backgroundColor: "rgba(255,255,255,0.03)",
     borderRadius: 16,
@@ -908,6 +1078,70 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "800"
+  },
+  setsContainer: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)"
+  },
+  setsTableHeader: {
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.04)",
+    alignItems: "center"
+  },
+  setsTableHeaderText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.3)",
+    letterSpacing: 0.5
+  },
+  setNumberBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  setNumberBadgeText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  setTagBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  setTagBadgeText: {
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.3
+  },
+  setRowTextVal: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  setRowTextSuffix: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.3)",
+    fontWeight: "500"
+  },
+  inputWrapper: {
+    flex: 1,
+    position: "relative"
+  },
+  inputSuffix: {
+    position: "absolute",
+    right: 10,
+    top: 11,
+    fontSize: 9,
+    color: "rgba(255,255,255,0.3)",
+    fontWeight: "700"
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.03)",

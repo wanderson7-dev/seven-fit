@@ -70,7 +70,7 @@ export default function DietTab({
   const [cfUnit, setCfUnit] = useState("100g"); // "100g" | "1 unidade" | "1 fatia"
 
   const t = getTargets();
-  const logs = state.foodLogs.filter((l) => l.date === logDate);
+  const logs = (state.foodLogs || []).filter((l) => l.date === logDate);
   const tot = getTotals(logs);
 
   // Initialize historical date
@@ -340,7 +340,7 @@ export default function DietTab({
                     <input type="text" placeholder="Filtrar alimentos..." value={foodSearch} onChange={(e) => setFoodSearch(e.target.value)} style={{ paddingLeft: "32px", fontSize: "13px" }} />
                   </div>
                   {!foodSearch && (() => {
-                    const recent = [...new Set(state.foodLogs.map(l => l.foodName))].map(n => allFoods().find(f => f.name === n)).filter(Boolean).slice(0, 5);
+                    const recent = [...new Set((state.foodLogs || []).map(l => l.foodName))].map(n => allFoods().find(f => f.name === n)).filter(Boolean).slice(0, 5);
                     return recent.length > 0 ? (
                       <div style={{ marginBottom: "6px" }}>
                         <div style={{ fontSize: "9px", fontWeight: "700", color: "rgba(255,255,255,0.3)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}><History size={10} /> Recentes</div>
@@ -597,7 +597,7 @@ export default function DietTab({
 
           {/* Show Historical details */}
           {(() => {
-            const hLogs = state.foodLogs.filter((l) => l.date === activeHistDietDate);
+            const hLogs = (state.foodLogs || []).filter((l) => l.date === activeHistDietDate);
             const hTot = getTotals(hLogs);
             if (!hLogs.length) {
               return (
@@ -690,7 +690,7 @@ export default function DietTab({
             <div>
               {/* Recently used (from logs) */}
               {(() => {
-                const usedNames = [...new Set(state.foodLogs.map(l => l.foodName))];
+                const usedNames = [...new Set((state.foodLogs || []).map(l => l.foodName))];
                 const recentFoods = usedNames.map(name => allFoods().find(f => f.name === name)).filter(Boolean);
                 return recentFoods.length > 0 ? (
                   <div className="card" style={{ padding: "14px 16px", marginBottom: "10px" }}>

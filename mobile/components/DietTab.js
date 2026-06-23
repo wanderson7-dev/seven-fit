@@ -77,7 +77,7 @@ export default function DietTab() {
   const [visionStatusColor, setVisionStatusColor] = useState("rgba(255,255,255,0.5)");
 
   const t = getTargets();
-  const logs = state.foodLogs.filter((l) => l.date === logDate);
+  const logs = (state.foodLogs || []).filter((l) => l.date === logDate);
   const totals = logs.reduce(
     (a, l) => ({
       kcal: a.kcal + (l.kcal || 0),
@@ -88,7 +88,7 @@ export default function DietTab() {
     { kcal: 0, protein: 0, carbs: 0, fat: 0 }
   );
 
-  const dates = [...new Set(state.foodLogs.map((l) => l.date))].sort().reverse();
+  const dates = [...new Set((state.foodLogs || []).map((l) => l.date))].sort().reverse();
   const activeHistDietDate = histDietDate || dates[0] || "";
 
   const filteredFoods = foodSearch
@@ -453,7 +453,7 @@ export default function DietTab() {
             </View>
 
             {(() => {
-              const hLogs = state.foodLogs.filter((l) => l.date === activeHistDietDate);
+              const hLogs = (state.foodLogs || []).filter((l) => l.date === activeHistDietDate);
               const hTotals = hLogs.reduce(
                 (a, l) => ({
                   kcal: a.kcal + (l.kcal || 0),
