@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import DietPlanEditor from "@/components/DietPlanEditor";
 import { Search, Camera, Upload, Download, Trash2, Settings, Flame, X, Plus, ChevronDown, ChevronUp, History } from "lucide-react";
 
 // Reusable ProgressBar Component
@@ -531,47 +532,12 @@ export default function DietTab({
             </div>
           )}
 
-          {(() => {
-            const currentPlan = (todaySched.calType === "heavy" ? mealPlan?.heavy : mealPlan?.normal) || [];
-            const totalPlanKcal = currentPlan.reduce((sum, m) => sum + (m.kcal || 0), 0);
-            
-            return (
-              <>
-                <div className="small" style={{ marginBottom: "12px" }}>
-                  {todaySched.calType === "heavy" ? `🦵 Dia Pesado — ${totalPlanKcal} kcal` : `Dia Normal — ${totalPlanKcal} kcal`}
-                </div>
-                {!currentPlan.length ? (
-                  <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "32px" }}>
-                    Nenhuma refeição cadastrada para este tipo de dia.
-                  </div>
-                ) : (
-                  currentPlan.map((meal, index) => (
-                    <div className="card" key={index}>
-                      <div className="row-sb" style={{ marginBottom: "10px" }}>
-                        <div style={{ fontWeight: "600", fontSize: "15px" }}>{meal.name}</div>
-                        <div className="small">
-                          {meal.time} · {meal.kcal} kcal
-                        </div>
-                      </div>
-                      {meal.foods?.map((food, fIdx) => (
-                        <div
-                          key={fIdx}
-                          style={{
-                            fontSize: "13px",
-                            color: "rgba(255,255,255,0.6)",
-                            padding: "5px 0",
-                            borderBottom: fIdx < meal.foods.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                          }}
-                        >
-                          · {food}
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                )}
-              </>
-            );
-          })()}
+          <DietPlanEditor
+            mealPlan={mealPlan}
+            saveMealPlan={saveMealPlan}
+            targets={t}
+            objetivo={state.profile?.objetivo || "cutting"}
+          />
         </div>
       )}
 

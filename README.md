@@ -1,79 +1,161 @@
-# Seven Fit — CuttingOS (Next.js Edition)
+<div align="center">
 
-App de acompanhamento de cutting personalizado, agora transformado em uma aplicação robusta de produção usando **Node.js** e **React** com o framework **Next.js (App Router)**.
+<img src="public/logo.svg" width="80" alt="HeavyDutyOS logo"/>
 
----
+# HeavyDutyOS
 
-## ✨ Funcionalidades Supercarregadas
+**Treino de alta intensidade ao estilo Mike Mentzer.**  
+Registre, evolua, domine.
 
-- **Dashboard com Macros e Gráficos**: Progresso diário de calorias, proteína, carboidrato e gordura, histórico de 7 dias e registro simplificado de peso.
-- **Busca de Alimentos Híbrida em Tempo Real**: A barra de pesquisa na aba de dieta faz uma busca simultânea local e na nuvem usando a base brasileira do **Open Food Facts** para retornar milhares de produtos reais de supermercado em 1 clique.
-- **Leitor de Código de Barras com Fallback Inteligente (IA)**:
-  * Busca e extrai macros de alimentos usando códigos de barras (EAN/UPC).
-  * Se o produto for brasileiro e estiver com macros incompletos ou zerados na base pública, o backend **Node.js consulta o Claude 3.5 Sonnet automaticamente** para resgatar os macros estimados com alta fidelidade!
-- **Leitor de Tabela Nutricional por Imagem via IA (Claude Vision)**: Envie uma foto ou arquivo da tabela nutricional e o Claude Vision extrairá os macros por 100g instantaneamente de forma segura no backend.
-- **Registro de Treino Avançado**: Controle de séries aquecimento vs. válidas, cálculo automático de volume total levantado, notas e histórico de cargas de cada exercício.
-- **Acompanhamento de Progresso**: Linha do tempo de peso, fotos semanais (frente/lado/costas) e estatísticas vitais acumuladas da sua jornada.
-- **Personalização de Cronograma**: Planejador semanal de treinos, metas de macros separadas para dias normais vs. dias pesados e seletor de cores de status.
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)
+![Supabase](https://img.shields.io/badge/Supabase-green?logo=supabase)
+![Groq](https://img.shields.io/badge/Groq_AI-free-orange)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+</div>
 
 ---
 
-## 🏗️ Arquitetura do Projeto
+## ✨ Funcionalidades
 
-O código agora está totalmente modularizado, limpo e em conformidade com as melhores práticas de React moderno:
-
-```text
-├── app/
-│   ├── api/
-│   │   ├── analyze-label/route.js   # API Node.js para leitura de tabelas com Claude Vision
-│   │   ├── barcode/route.js         # API Node.js para buscar EAN (OFF + Fallback IA)
-│   │   └── food-search/route.js     # API Node.js para busca de produtos por texto (OFF Brasil)
-│   ├── globals.css                  # Folha de estilo central com variáveis e tema Dark Premium
-│   ├── layout.js                    # Layout raiz do Next.js com SEO e internacionalização pt-BR
-│   └── page.js                      # Controlador de estado global reativo (LocalStorage)
-├── components/
-│   ├── Dashboard.jsx                # Componente da página principal e gráficos de macros
-│   ├── DietTab.jsx                  # Painel de controle de dieta e busca híbrida
-│   ├── EditDayModal.jsx             # Modal bottom-sheet para planejar dias de treino
-│   ├── Header.jsx                   # Top bar com data em português e status
-│   ├── HistoryModal.jsx             # Modal de histórico detalhado de cargas de um exercício
-│   ├── ProgressTab.jsx              # Painel de evolução física (peso, fotos e histórico)
-│   ├── ScannerModal.jsx             # Modal do leitor de códigos e fotos de tabelas
-│   ├── SettingsTab.jsx              # Painel de configurações semanais e metas
-│   └── TabBar.jsx                   # Barra de navegação inferior fluida
-```
+- 🏋️ **Treino** — sessões com registro de séries, histórico e volume acumulado
+- 🥗 **Dieta** — macros automáticos no método Mentzer (60% carb · 25% prot · 15% gord)
+- 📊 **Dashboard** — visão geral de metas calóricas por objetivo (Cutting / Bulking / Manutenção)
+- 🤖 **HeavyDuty Coach** — chat de IA treinado com vídeos de influenciadores fitness
+- 📋 **Guia de exercícios** — imagem animada + instruções passo a passo em PT-BR
+- ✨ **IA monta plano** — gera uma semana completa de treinos baseada nos seus objetivos
+- 🎙️ **Aprenda com vídeos** — cole um link do YouTube e o Coach aprende com aquele conteúdo
+- 📱 **PWA** — instale como app no Android ou iPhone, sem App Store
 
 ---
 
-## 🚀 Como Rodar Localmente
+## 🚀 Setup local
 
-### 1. Requisitos
-Certifique-se de ter o [Node.js](https://nodejs.org/) instalado em seu sistema (v18 ou superior).
+### Pré-requisitos
+- Node.js 18+
+- Conta Supabase (opcional — para sync em nuvem)
+- Chave Groq (opcional — para o Coach de IA)
 
-### 2. Clonar e Instalar dependências
+### Instalação
+
 ```bash
-git clone https://github.com/wanderson7-dev/seven-fit.git
-cd seven-fit
+git clone https://github.com/SEU_USER/heavydutyos.git
+cd heavydutyos
 npm install
 ```
 
-### 3. Configurar Variáveis de Ambiente
-Crie um arquivo chamado `.env.local` na raiz do projeto e insira a sua chave de API da Anthropic para liberar as funcionalidades do leitor de tabelas por foto e o fallback de códigos de barras:
+Crie o arquivo `.env.local`:
+
 ```env
-ANTHROPIC_API_KEY=sua_chave_de_api_do_claude_aqui
+# Groq — Coach de IA e transcrição de vídeos (grátis em console.groq.com/keys)
+GROQ_API_KEY=gsk_...
+
+# Supabase — sync entre dispositivos (opcional)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+
+# Claude — guia de exercícios por IA (opcional, Groq é usado como fallback)
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### 4. Iniciar Servidor de Desenvolvimento
 ```bash
 npm run dev
+# Acesse http://localhost:3000
 ```
-Abra **[http://localhost:3000](http://localhost:3000)** no seu navegador e aproveite!
+
+> **Sem nenhuma variável de ambiente o app funciona.** Você pode inserir sua chave Groq direto nas Configurações do app — ela fica salva no seu dispositivo.
 
 ---
 
-## 📦 Deploy na Vercel
+## 📁 Estrutura
 
-O projeto está totalmente otimizado e configurado para deploy com zero esforço na Vercel:
-1. Conecte seu repositório GitHub à Vercel.
-2. Nas configurações do projeto, adicione `ANTHROPIC_API_KEY` na seção de **Environment Variables** (Variáveis de Ambiente).
-3. A Vercel detectará automaticamente que é um projeto Next.js e fará o build e deploy instantâneo!
+```
+app/
+  page.js                    # App principal
+  api/
+    coach-chat/route.js      # Coach de IA (Groq + base de vídeos)
+    exercise-guide/route.js  # Guia de exercício (PT-BR, IA)
+    add-video/route.js       # Transcrição automática de vídeos
+    ...
+components/
+  WorkoutTab.jsx             # Aba de treino
+  DietTab.jsx                # Aba de dieta
+  SettingsTab.jsx            # Configurações e macros
+  CoachChatModal.jsx         # Chat do Coach de IA
+  ExerciseGuideModal.jsx     # Guia de execução
+  AiPlanModal.jsx            # IA monta plano semanal
+  AddVideoModal.jsx          # Adicionar vídeo ao Coach
+  HeavyDutyLogo.jsx          # Logo do bigode (Mike Mentzer)
+  Header.jsx                 # Header com logo dinâmica
+lib/
+  exercises-ptbr.json        # 873 exercícios em PT-BR com instruções
+  supabase.js                # Cliente Supabase
+data/
+  knowledge-base.json        # Base de conhecimento dos vídeos (gerada pelos scripts)
+  influencer-videos.json     # Lista de vídeos para transcrever
+scripts/
+  transcribe-videos.mjs      # Baixa e transcreve vídeos (roda local)
+  build-knowledge-base.mjs   # Gera knowledge-base.json dos transcritos
+```
+
+---
+
+## 🎙️ Treinar o Coach com vídeos
+
+### Opção 1 — No próprio app (ambiente local)
+1. Abra o app → botão 🎙️ no canto da tela
+2. Cole o link do YouTube, preencha canal e título
+3. Clique em "Transcrever e Treinar Coach"
+
+### Opção 2 — Script offline (para a Vercel)
+```bash
+# 1. Preencha data/influencer-videos.json com os links
+# 2. Rode o script (precisa do yt-dlp instalado)
+node --env-file=.env.local scripts/transcribe-videos.mjs
+
+# 3. Gere a base de conhecimento
+node scripts/build-knowledge-base.mjs
+
+# 4. Faça commit do arquivo gerado
+git add data/knowledge-base.json
+git commit -m "feat: adicionar vídeos ao knowledge base"
+git push
+```
+
+Instalar yt-dlp:
+```bash
+# Windows
+winget install yt-dlp && winget install Gyan.FFmpeg
+
+# Mac
+brew install yt-dlp ffmpeg
+
+# Linux
+sudo apt install yt-dlp ffmpeg
+```
+
+---
+
+## 🌐 Deploy (Vercel — Gratuito)
+
+1. Fork este repositório
+2. Acesse [vercel.com](https://vercel.com) → **Add New Project** → importe o fork
+3. Adicione as variáveis de ambiente no painel da Vercel
+4. Deploy automático a cada `git push`
+
+---
+
+## 📱 Instalar como app no celular
+
+**Android:** Chrome → menu ⋮ → "Adicionar à tela inicial"  
+**iPhone:** Safari → compartilhar ↑ → "Adicionar à Tela de Início"
+
+---
+
+## 🙏 Créditos
+
+- Método Heavy Duty — **Mike Mentzer**
+- Base de exercícios — [free-exercise-db](https://github.com/yuhonas/free-exercise-db)
+- IA — [Groq](https://groq.com) (Llama 3.3 70B) + [Whisper Large v3](https://openai.com/research/whisper)
+- Hosting — [Vercel](https://vercel.com)
+- Banco de dados — [Supabase](https://supabase.com)

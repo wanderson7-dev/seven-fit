@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
+import HeavyDutyLogo from "@/components/HeavyDutyLogo";
+import CoachChatModal from "@/components/CoachChatModal";
+import AiPlanModal from "@/components/AiPlanModal";
+import AddVideoModal from "@/components/AddVideoModal";
 import TabBar from "@/components/TabBar";
 import Dashboard from "@/components/Dashboard";
 import DietTab from "@/components/DietTab";
@@ -531,67 +535,68 @@ export default function Home() {
       goal_bf: parseFloat(rawProfile.goal_bf) || DEFAULT_PROFILE.goal_bf,
       activityFactor: parseFloat(rawProfile.activityFactor) || DEFAULT_PROFILE.activityFactor,
       gender: rawProfile.gender || DEFAULT_PROFILE.gender,
-      proteinFactor: parseFloat(rawProfile.proteinFactor) || DEFAULT_PROFILE.proteinFactor
+      proteinFactor: parseFloat(rawProfile.proteinFactor) || DEFAULT_PROFILE.proteinFactor,
+      objetivo: rawProfile.objetivo || "cutting",
     };
-    
+
     // TMB (Mifflin-St Jeor)
     let tmb = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age;
-    if (profile.gender === "female") {
-      tmb -= 161;
-    } else {
-      tmb += 5;
-    }
-    
+    tmb += profile.gender === "female" ? -161 : 5;
+
     // TDEE
     const tdee = Math.round(tmb * profile.activityFactor);
-    
-    // Weekly safe weight loss target (0.7% of body weight)
-    const weeklyWeightLossTargetKg = profile.weight * 0.007;
-    
-    // 1kg of fat = 7700 kcal. Deficit needed per week:
-    const weeklyDeficitNeeded = Math.round(weeklyWeightLossTargetKg * 7700);
-    
-    // Sunday is a free day (not counted/regulated). Total regulated energy target per week:
-    // 6 controlled days = TDEE * 6 - weeklyDeficitNeeded
-    // Daily average controlled target = (TDEE * 6 - weeklyDeficitNeeded) / 6
-    const dailyAverageControlledTarget = tdee - Math.round(weeklyDeficitNeeded / 6);
-    
-    // Macros factor
-    const pFactor = parseFloat(profile.proteinFactor) || 1.8;
-    const proteinGrams = Math.round(pFactor * profile.weight);
-    const fatGrams = Math.round(0.8 * profile.weight);
-    
-    // Split into normal and heavy training days
-    // Normal days are average - 30 (arredondado para múltiplos de 50)
-    // Heavy days are average + 170
-    const kcalNormal = Math.round((dailyAverageControlledTarget - 30) / 50) * 50;
-    const kcalHeavy = kcalNormal + 200;
-    
-    // Carbohydrates calculated by remaining calories:
-    // (Kcal - Prot * 4 - Fat * 9) / 4
-    const carbsNormal = Math.max(0, Math.round((kcalNormal - (proteinGrams * 4) - (fatGrams * 9)) / 4));
-    const carbsHeavy = Math.max(0, Math.round((kcalHeavy - (proteinGrams * 4) - (fatGrams * 9)) / 4));
-    
+
+    // ── Distribuição Mentzer: 60% carb · 25% prot · 15% gordura ──────────────
+    // Calcula a kcal alvo por objetivo primeiro, depois distribui os macros
+    let kcalNormal, kcalHeavy, weeklyDelta, weeklyWeightTargetKg, goalLabel;
+
+    if (profile.objetivo === "bulking") {
+      // Superávit ~0.5% peso/semana para ganho lean
+      weeklyWeightTargetKg = profile.weight * 0.005;
+      weeklyDelta          = Math.round(weeklyWeightTargetKg * 7700);
+      kcalNormal           = Math.round((tdee + Math.round(weeklyDelta / 6)) / 50) * 50;
+      kcalHeavy            = kcalNormal + 250;
+      goalLabel            = "Bulking";
+    } else if (profile.objetivo === "manutencao") {
+      weeklyWeightTargetKg = 0;
+      weeklyDelta          = 0;
+      kcalNormal           = Math.round(tdee / 50) * 50;
+      kcalHeavy            = kcalNormal + 150;
+      goalLabel            = "Manutenção";
+    } else {
+      // Cutting: déficit ~0.7%/semana
+      weeklyWeightTargetKg = profile.weight * 0.007;
+      weeklyDelta          = Math.round(weeklyWeightTargetKg * 7700);
+      const dailyTarget    = tdee - Math.round(weeklyDelta / 6);
+      kcalNormal           = Math.round((dailyTarget - 30) / 50) * 50;
+      kcalHeavy            = kcalNormal + 200;
+      goalLabel            = "Cutting";
+    }
+
+    // Distribuição Mentzer: 60% carb, 25% prot, 15% gordura
+    const macroSplit = (kcal) => ({
+      kcal,
+      carbs:   Math.round((kcal * 0.60) / 4),
+      protein: Math.round((kcal * 0.25) / 4),
+      fat:     Math.round((kcal * 0.15) / 9),
+    });
+
+    const normalMacros = macroSplit(kcalNormal);
+    const heavyMacros  = macroSplit(kcalHeavy);
+
     return {
-      tmb,
+      tmb: Math.round(tmb),
       tdee,
-      weeklyWeightLossTargetKg: Math.round(weeklyWeightLossTargetKg * 1000) / 1000,
-      weeklyDeficitNeeded,
-      dailyAverageControlledTarget,
-      proteinGrams,
-      fatGrams,
-      normal: {
-        kcal: kcalNormal,
-        protein: proteinGrams,
-        carbs: carbsNormal,
-        fat: fatGrams
-      },
-      heavy: {
-        kcal: kcalHeavy,
-        protein: proteinGrams,
-        carbs: carbsHeavy,
-        fat: fatGrams
-      }
+      objetivo: profile.objetivo,
+      goalLabel,
+      weeklyWeightLossTargetKg: Math.round(weeklyWeightTargetKg * 1000) / 1000,
+      weeklyDeficitNeeded: weeklyDelta,
+      dailyAverageControlledTarget: kcalNormal,
+      // Compatibilidade legada
+      proteinGrams: normalMacros.protein,
+      fatGrams: normalMacros.fat,
+      normal: normalMacros,
+      heavy:  heavyMacros,
     };
   };
 
@@ -1179,12 +1184,16 @@ export default function Home() {
     setIsGuideOpen(true);
   };
 
+  const [isCoachChatOpen, setIsCoachChatOpen] = useState(false);
+  const [aiPlanModal, setAiPlanModal] = useState({ open: false, group: "" });
+  const [showAddVideo, setShowAddVideo] = useState(false);
+
   if (!isHydrated) {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100vh", alignItems: "center", justifyContent: "center", background: "#0a0a0f", gap: "16px" }}>
         <div style={{ width: "32px", height: "32px", border: "3px solid rgba(255,255,255,0.06)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
         <div className="syne" style={{ fontSize: "14px", fontWeight: "700", letterSpacing: "1px", color: "rgba(255,255,255,0.5)" }}>
-          CARREGANDO CUTTINGOS...
+          CARREGANDO HEAVYDUTYOS...
         </div>
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes spin { to { transform: rotate(360deg); } }
@@ -1243,16 +1252,13 @@ export default function Home() {
           zIndex: 1,
           boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
         }}>
-          {/* Logo */}
-          <div className="syne" style={{ fontSize: "32px", fontWeight: "900", letterSpacing: "-1.5px", marginBottom: "8px" }}>
-            CuttingOS <span style={{ color: "#f97316", textShadow: "0 0 12px #f97316" }}>●</span>
-          </div>
-          <div className="syne" style={{ fontSize: "12px", fontWeight: "800", color: "#3b82f6", textTransform: "uppercase", letterSpacing: "2px", marginBottom: "24px" }}>
-            Alta Performance
+          {/* Logo HeavyDutyOS */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+            <HeavyDutyLogo size={80} withText />
           </div>
 
-          <p style={{ fontSize: "14px", color: "rgba(255, 255, 255, 0.6)", lineHeight: "1.6", marginBottom: "32px" }}>
-            Monitore seus treinos, gerencie suas metas calóricas, calcule seu déficit diário e acompanhe sua evolução física de forma segura na nuvem.
+          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", lineHeight: "1.6", marginBottom: "28px", textAlign: "center" }}>
+            Treino de alta intensidade ao estilo Mike Mentzer.<br/>Registre, evolua, domine.
           </p>
 
           {!supabase ? (
@@ -1404,6 +1410,7 @@ export default function Home() {
                   fmtDate={fmtDate}
                   openHistoryModal={openHistoryModal}
                   openGuideModal={openGuideModal}
+  openAiPlanModal={(group)=>setAiPlanModal({open:true,group})}
                 />
               )}
               {activeTab === "progress" && (
@@ -1448,6 +1455,48 @@ export default function Home() {
       </div>
 
       {/* TAB BAR Bottom Navigation */}
+      {/* Botão flutuante — Adicionar Vídeo ao Coach */}
+      <button
+        onClick={() => setShowAddVideo(true)}
+        style={{
+          position:"fixed",right:"20px",bottom:"162px",zIndex:500,
+          width:"44px",height:"44px",borderRadius:"14px",border:"none",
+          background:"rgba(255,255,255,0.08)",
+          border:"1px solid rgba(255,255,255,0.1)",
+          boxShadow:"0 4px 16px rgba(0,0,0,0.3)",
+          cursor:"pointer",display:"flex",flexDirection:"column",
+          alignItems:"center",justifyContent:"center",gap:"2px",
+        }}
+        title="Treinar Coach com Vídeo"
+      >
+        <span style={{fontSize:"16px",lineHeight:1}}>🎙️</span>
+        <span style={{fontSize:"7px",fontWeight:"800",color:"rgba(255,255,255,0.5)",letterSpacing:"0.3px",fontFamily:"'DM Sans',sans-serif"}}>VÍDEO</span>
+      </button>
+
+      {/* Botão flutuante do HeavyDuty Coach */}
+      <button
+        onClick={() => setIsCoachChatOpen(true)}
+        style={{
+          position: "fixed", right: "20px", bottom: "100px", zIndex: 500,
+          width: "50px", height: "50px", borderRadius: "16px", border: "none",
+          background: "linear-gradient(135deg,#f97316,#fb923c)",
+          boxShadow: "0 4px 20px rgba(249,115,22,0.45)",
+          cursor: "pointer", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: "1px",
+        }}
+        title="HeavyDuty Coach"
+      >
+        <svg width="22" height="14" viewBox="0 0 100 62" fill="none">
+          <path d="M50 26 C44 20,33 18,22 22 C14 25,10 33,11 39 C12 43,17 45,23 43 C31 40,41 32,47 28 Z" fill="white" opacity="0.95"/>
+          <path d="M50 28 C44 31,35 36,27 43 C19 49,11 50,11 41 C10 34,15 28,22 24 C30 20,42 18,49 26 Z" fill="white" opacity="0.7"/>
+          <path d="M50 26 C56 20,67 18,78 22 C86 25,90 33,89 39 C88 43,83 45,77 43 C69 40,59 32,53 28 Z" fill="white" opacity="0.95"/>
+          <path d="M50 28 C56 31,65 36,73 43 C81 49,89 50,89 41 C90 34,85 28,78 24 C70 20,58 18,51 26 Z" fill="white" opacity="0.7"/>
+          <path d="M11 40 C9 44,7 51,8 56 C9 59,12 60,14 58 C16 56,16 49,15 44 Z" fill="white" opacity="0.8"/>
+          <path d="M89 40 C91 44,93 51,92 56 C91 59,88 60,86 58 C84 56,84 49,85 44 Z" fill="white" opacity="0.8"/>
+        </svg>
+        <span style={{ fontSize: "7px", fontWeight: "800", color: "rgba(255,255,255,0.85)", letterSpacing: "0.3px", fontFamily: "'DM Sans',sans-serif" }}>COACH</span>
+      </button>
+
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* GLOBAL MODALS */}
@@ -1474,6 +1523,29 @@ export default function Home() {
         exerciseName={historyExName}
         state={state}
         SET_TYPES={SET_TYPES}
+      />
+
+      {aiPlanModal.open && (
+        <AiPlanModal
+          group={aiPlanModal.group}
+          onClose={()=>setAiPlanModal({open:false,group:""})}
+          onApply={(dias)=>{
+            // Aplica o primeiro dia do plano ao grupo ativo
+            if (dias?.length) {
+              const exs = dias.flatMap(d=>d.exercicios||[]);
+              const unique = [...new Set(exs)];
+              saveWorkoutPlan(aiPlanModal.group, unique);
+            }
+          }}
+        />
+      )}
+
+      {showAddVideo && <AddVideoModal onClose={()=>setShowAddVideo(false)}/>}
+
+      <CoachChatModal
+        isOpen={isCoachChatOpen}
+        onClose={() => setIsCoachChatOpen(false)}
+        workoutLogs={state.workoutLogs || []}
       />
 
       <ExerciseGuideModal

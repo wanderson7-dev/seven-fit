@@ -119,8 +119,12 @@ export default function WorkoutTab({
   fmtDate,
   openHistoryModal,
   openGuideModal,
+  openAiPlanModal,
 }) {
-  const ALL_GROUPS = ["Push", "Pull", "Legs", "Upper", "Lower"];
+  // Planos dinâmicos: usa os que existem no workoutPlans + fallback se vazio
+  const ALL_GROUPS = workoutPlans && Object.keys(workoutPlans).length
+    ? Object.keys(workoutPlans)
+    : ["Push", "Pull", "Legs"];
 
   const [activeSubTab, setActiveSubTab] = useState("session");
   const [histWrkDate, setHistWrkDate] = useState("");
@@ -186,6 +190,8 @@ export default function WorkoutTab({
   const [newExMuscle, setNewExMuscle] = useState(null);
 
   // Plano sub-tab
+  const [showNewPlan, setShowNewPlan] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
   const [planGroup, setPlanGroup] = useState("Push");
   const [planSearch, setPlanSearch] = useState("");
   const [showLibrary, setShowLibrary] = useState(false);
@@ -507,7 +513,7 @@ export default function WorkoutTab({
             )}
           </div>
 
-          {/* Group selector */}
+          {/* Group selector — planos dinâmicos */}
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
             {ALL_GROUPS.map((g) => (
               <button key={g} onClick={() => { if (!sessionStarted) { setSelectedGroup(selectedGroup === g ? null : g); } else { setSelectedGroup(g); } }}
@@ -681,7 +687,11 @@ export default function WorkoutTab({
                         <GripVertical size={16} style={{ color: "rgba(255,255,255,0.2)" }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: "700", fontSize: "14px", color: isOpen ? "#f97316" : "#fff", transition: "color 0.2s" }}>{ex.name}</div>
+                        <div
+                          style={{ fontWeight:"700",fontSize:"14px",color:isOpen?"#f97316":"#fff",transition:"color 0.2s",cursor:"pointer",textDecoration:"underline dotted",textUnderlineOffset:"3px",textDecorationColor:"rgba(249,115,22,0.35)" }}
+                          onClick={e=>{e.stopPropagation();openGuideModal&&openGuideModal(ex.name);}}
+                          title="Ver como executar"
+                        >{ex.name}</div>
                       {ex.sets.length > 0 ? (
                         <div style={{ fontSize: "11px", marginTop: "3px", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ color: "#f97316", fontWeight: "700" }}>{ex.sets.length} {ex.sets.length === 1 ? 'série' : 'séries'}</span>
@@ -696,7 +706,6 @@ export default function WorkoutTab({
                     </div>
                   </div>
                     <div className="row" style={{ gap: "6px", background: "rgba(255,255,255,0.03)", borderRadius: "20px", padding: "3px 6px" }} onClick={(e) => e.stopPropagation()}>
-                      <button className="btn btn-ghost" style={{ width: "26px", height: "26px", padding: "0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => openGuideModal && openGuideModal(ex.name)} title="Guia de Execução"><BookOpen size={12} /></button>
                       <button className="btn btn-ghost" style={{ width: "26px", height: "26px", padding: "0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => openHistoryModal && openHistoryModal(ex.name)} title="Histórico"><History size={12} /></button>
                       <button className="btn-danger" style={{ width: "26px", height: "26px", padding: "0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => handleRemoveEx(exIdx)} title="Remover"><X size={11} /></button>
                     </div>
@@ -1147,25 +1156,77 @@ export default function WorkoutTab({
       {/* ─────────── PLANO ─────────── */}
       {activeSubTab === "plan" && (
         <div>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
+          {/* Seletor de planos existentes */}
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
             {ALL_GROUPS.map((g) => (
               <button key={g} onClick={() => { setPlanGroup(g); setPlanSearch(""); setShowLibrary(false); }}
-                style={{ padding: "7px 16px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'DM Sans',sans-serif",
-                  background: planGroup === g ? "#f97316" : "rgba(255,255,255,0.07)", color: planGroup === g ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                style={{ padding:"7px 14px", borderRadius:10, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif",
+                  background: planGroup===g ? "#f97316" : "rgba(255,255,255,0.07)", color: planGroup===g ? "#fff" : "rgba(255,255,255,0.5)" }}>
                 {g}
               </button>
             ))}
           </div>
 
-          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "12px", lineHeight: 1.5 }}>
-            {{
-              Push: "Peito · Ombro · Tríceps",
-              Pull: "Costas · Bíceps",
-              Legs: "Pernas",
-              Upper: "Peito · Ombro · Tríceps · Costas",
-              Lower: "Pernas · Bíceps",
-            }[planGroup]}
-          </div>
+          {/* Criar novo plano */}
+          {showNewPlan ? (
+            <div className="card" style={{ padding:"12px 14px", marginBottom:10 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:"#f97316", marginBottom:10 }}>Novo plano de treino</div>
+              <input type="text" placeholder="Nome do plano (ex: Push A, Chest Day...)"
+                value={newPlanName} onChange={e=>setNewPlanName(e.target.value)}
+                style={{ marginBottom:10 }}/>
+              <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:.7, marginBottom:6 }}>
+                Ou escolha um template
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:10 }}>
+                {[
+                  { category:"PPL Clássico",    items:["Push","Pull","Legs"] },
+                  { category:"Upper/Lower",      items:["Upper","Lower"] },
+                  { category:"Full Body",        items:["Full Body A","Full Body B"] },
+                  { category:"Torso/Limbs",      items:["Torso","Limbs"] },
+                  { category:"Ant./Post.",       items:["Anterior","Posterior"] },
+                  { category:"PPL x2 (6 dias)", items:["Push A","Pull A","Legs A","Push B","Pull B","Legs B"] },
+                  { category:"Por músculo",      items:["Peito","Costas","Pernas","Ombro","Braços"] },
+                ].map(tpl=>(
+                  <div key={tpl.category}>
+                    <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginBottom:4 }}>{tpl.category}</div>
+                    <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                      {tpl.items.map(item=>(
+                        <button key={item} onClick={()=>{
+                          if (!workoutPlans[item]) saveWorkoutPlan(item,[]);
+                          setPlanGroup(item); setShowLibrary(false); setShowNewPlan(false); setNewPlanName("");
+                        }} style={{
+                          padding:"5px 10px", borderRadius:8, border:"1px solid rgba(255,255,255,0.1)", cursor:"pointer",
+                          fontSize:11, fontWeight:700, fontFamily:"'DM Sans',sans-serif",
+                          background:workoutPlans[item]?"rgba(16,185,129,0.12)":"rgba(255,255,255,0.05)",
+                          color:workoutPlans[item]?"#10b981":"rgba(255,255,255,0.7)",
+                        }}>
+                          {workoutPlans[item]?"✓ ":""}{item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>{setShowNewPlan(false);setNewPlanName("");}} className="btn btn-ghost" style={{ flex:1, fontSize:12, padding:9 }}>Cancelar</button>
+                {newPlanName.trim() && (
+                  <button onClick={()=>{
+                    saveWorkoutPlan(newPlanName.trim(),[]);
+                    setPlanGroup(newPlanName.trim()); setShowNewPlan(false); setNewPlanName("");
+                  }} className="btn btn-primary" style={{ flex:2, fontSize:12, padding:9 }}>Criar &quot;{newPlanName}&quot;</button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>setShowNewPlan(true)} style={{
+              width:"100%", marginBottom:12, padding:"9px 14px", borderRadius:12,
+              border:"1px dashed rgba(249,115,22,0.35)", background:"rgba(249,115,22,0.05)",
+              cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif",
+              color:"#f97316", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+            }}>
+              <Plus size={13}/> Novo plano / template
+            </button>
+          )}
 
           {/* Exercícios do plano */}
           <div className="card" style={{ padding: "14px 16px", marginBottom: "10px" }}>
@@ -1176,12 +1237,30 @@ export default function WorkoutTab({
               <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "16px 0" }}>Nenhum exercício no plano. Adicione da biblioteca abaixo.</div>
             )}
             {planExercises.map((name) => (
-              <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <span style={{ fontSize: "13px", fontWeight: "500" }}>{name}</span>
-                <button className="btn-danger" style={{ padding: "4px 8px", display: "flex", alignItems: "center" }} onClick={() => removeFromPlan(name)}><Trash2 size={12} /></button>
+              <div key={name} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,cursor:"pointer" }}
+                  onClick={()=>openGuideModal&&openGuideModal(name)}>
+                  <div style={{ width:28,height:28,borderRadius:8,background:"rgba(249,115,22,0.1)",border:"1px solid rgba(249,115,22,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                    <BookOpen size={11} style={{color:"#f97316"}}/>
+                  </div>
+                  <span style={{ fontSize:"13px",fontWeight:"600",color:"#fff" }}>{name}</span>
+                </div>
+                <button className="btn-danger" style={{ padding:"4px 8px",display:"flex",alignItems:"center",flexShrink:0 }} onClick={()=>removeFromPlan(name)}><Trash2 size={12}/></button>
               </div>
             ))}
           </div>
+
+          {/* IA montar plano */}
+          <button
+            onClick={()=>openAiPlanModal&&openAiPlanModal(planGroup)}
+            style={{
+              width:"100%",marginBottom:8,padding:"11px 16px",borderRadius:14,
+              border:"1px dashed rgba(249,115,22,0.4)",background:"rgba(249,115,22,0.06)",
+              cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"'DM Sans',sans-serif",
+              color:"#f97316",display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+            }}>
+            ✨ IA montar plano de {planGroup}
+          </button>
 
           {/* Biblioteca para adicionar */}
           <div className="card" style={{ padding: "0", overflow: "hidden" }}>

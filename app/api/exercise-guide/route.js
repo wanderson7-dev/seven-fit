@@ -1,6 +1,63 @@
 import { NextResponse } from "next/server";
 import exercisesDb from "../../../lib/exercises-ptbr.json";
 
+// Mapeamento: nome usado no app → nome exato no exercises-ptbr.json
+const APP_TO_DB = {
+  "Supino Reto":                      "Supino Reto com Barra - Pegada Média",
+  "Supino Inclinado":                 "Supino Inclinado com Barra - Pegada Média",
+  "Supino Declinado":                 "Supino Declinado com Barra",
+  "Crucifixo":                        "Crucifixo com Halteres",
+  "Crucifixo Inclinado":              "Crucifixo Inclinado com Halteres",
+  "Pec Deck":                         "Butterfly",
+  "Crossover":                        "Crossover na Polia",
+  "Desenvolvimento com Barra":        "Desenvolvimento Militar com Barra",
+  "Desenvolvimento com Halteres":     "Press Arnold com Halteres",
+  "Elevação Lateral":                 "Elevação Lateral",
+  "Elevação Frontal":                 "Elevação Frontal com Halteres",
+  "Encolhimento":                     "Encolhimento de Ombros com Barra",
+  "Face Pull":                        "Face Pull",
+  "Tríceps Corda":                    "Tríceps Pulley com Corda",
+  "Tríceps Testa":                    "Tríceps Skull Crusher com Banda",
+  "Tríceps Francês":                  "Extensão de Tríceps Atrás da Cabeça com Corda",
+  "Tríceps Banco":                    "Mergulho no Banco",
+  "Mergulho":                         "Mergulho - Versão Peitoral",
+  "Extensão Tríceps":                 "Extensão de Tríceps Inclinada na Polia",
+  "Puxada Frente":                    "Pulldown com Amplitude Completa",
+  "Puxada Neutra":                    "Pulldown Frente em Pegada Fechada",
+  "Puxada Fechada":                   "Pulldown Frente em Pegada Fechada",
+  "Barra Fixa":                       "Barra Fixa",
+  "Pullover":                         "Pullover com Halter e Braços Flexionados",
+  "Remada Curvada":                   "Remada Curvada com Barra",
+  "Remada Unilateral":                "Remada Curvada com Dois Halteres",
+  "Remada Cavalinho":                 "Remada T-Bar Deitado",
+  "Remada Sentado":                   "Remada Sentada no Pulley",
+  "Serrote":                          "Remada Curvada com Dois Halteres",
+  "Rosca Direta":                     "Rosca Direta com Barra",
+  "Rosca Martelo":                    "Rosca Martelo",
+  "Rosca Concentrada":                "Rosca Concentrada",
+  "Rosca Scott":                      "Rosca Scott",
+  "Rosca Inversa":                    "Rosca Inversa com Barra",
+  "Rosca 21":                         "Rosca Direta com Barra",
+  "Crucifixo Invertido com Halteres": "Crucifixo Invertido com Banda",
+  "Crucifixo Invertido na Máquina":   "Crucifixo Inverso na Polia",
+  "Agachamento Livre":                "Agachamento com Barra",
+  "Agachamento Smith":                "Agachamento no Smith",
+  "Agachamento Sumô":                 "Agachamento Sumo",
+  "Leg Press":                        "Leg Press",
+  "Hack Squat":                       "Agachamento Hack com Barra",
+  "Cadeira Extensora":                "Extensão de Pernas",
+  "Mesa Flexora":                     "Cadeira Flexora",
+  "Cadeira Adutora":                  "Adutor de Coxas",
+  "Cadeira Abdutora":                 "Abdutor de Coxas",
+  "Stiff":                            "Stiff-Legged Deadlift no Smith",
+  "Avanço":                           "Afundo com Halteres",
+  "Avanço com Barra":                 "Afundo com Barra",
+  "Agachamento Búlgaro":              "Afundo Reverso Cruzado",
+  "Panturrilha em Pé":                "Elevação de Panturrilha com Halter",
+  "Panturrilha Sentado":              "Elevação de Panturrilha Sentado com Barra",
+  "Panturrilha no Leg Press":         "Press de Panturrilha na Máquina de Leg Press",
+};
+
 // Rich local database of fallbacks for the core exercises to guarantee immediate, offline-compatible operation!
 const FALLBACK_EXERCISES = {
   "Supino Reto": {
@@ -137,7 +194,7 @@ export async function GET(request) {
   }
 
   const name = rawName.trim();
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY || request.headers?.get?.("x-groq-key") || "";
 
   // 1. Try to search in our localized fallback database
   // Match ignoring case and accents
@@ -180,8 +237,10 @@ export async function GET(request) {
   }
 
   // 1.5. Try to search in the downloaded Pt-Br exercises database
+  const mappedName = APP_TO_DB[name] || name;
+  const normalizedMapped = normalize(mappedName);
   const dbMatch = exercisesDb.find(
-    (ex) => normalize(ex.name) === normalizedQuery || normalizedQuery.includes(normalize(ex.name)) || normalize(ex.name).includes(normalizedQuery)
+    (ex) => normalize(ex.name) === normalizedMapped || normalizedMapped.includes(normalize(ex.name)) || normalize(ex.name).includes(normalizedMapped)
   );
 
   if (dbMatch) {

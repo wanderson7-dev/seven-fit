@@ -15,7 +15,7 @@ export async function GET(request) {
       )}&search_simple=1&action=process&json=1&page_size=15&cc=br&lc=pt`,
       {
         headers: {
-          "User-Agent": "SevenFit-CuttingOS/1.0 (wanderson7.dev@gmail.com)",
+          "User-Agent": "HeavyDutyOS/1.0 (wanderson7.dev@gmail.com)",
         },
       }
     );

@@ -26,7 +26,14 @@ export default function SettingsTab({
   const [goalBf, setGoalBf] = useState(state.profile?.goal_bf || "");
   const [activityFactor, setActivityFactor] = useState(state.profile?.activityFactor || 1.725);
   const [gender, setGender] = useState(state.profile?.gender || "male");
+  const [settingsTab, setSettingsTab] = useState("perfil");
   const [proteinFactor, setProteinFactor] = useState(state.profile?.proteinFactor || 1.8);
+  const [objetivo, setObjetivo] = useState(state.profile?.objetivo || "cutting");
+  const [goalWeight, setGoalWeight] = useState(state.profile?.goal_weight || "");
+  const [groqKey, setGroqKey] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("hdos_groq_key") || "";
+    return "";
+  });
   const [profileSavedStatus, setProfileSavedStatus] = useState("");
 
   useEffect(() => {
@@ -87,7 +94,9 @@ export default function SettingsTab({
       goal_bf: gb,
       activityFactor: parseFloat(activityFactor),
       gender,
-      proteinFactor: parseFloat(proteinFactor)
+      proteinFactor: parseFloat(proteinFactor),
+      objetivo,
+      goal_weight: parseFloat(goalWeight) || null,
     });
     
     setProfileSavedStatus("✓ Perfil e metas nutricionais atualizados!");
@@ -187,6 +196,23 @@ export default function SettingsTab({
 
   return (
     <div>
+      {/* TABS INTERNAS */}
+      <div style={{ display:"flex", gap:6, marginBottom:16, background:"rgba(255,255,255,0.04)", borderRadius:14, padding:4 }}>
+        {[
+          { id:"perfil",  label:"Perfil & Metas" },
+          { id:"semana",  label:"Personalizar Semana" },
+        ].map(t => (
+          <button key={t.id} onClick={()=>setSettingsTab(t.id)} style={{
+            flex:1, padding:"9px 8px", borderRadius:10, border:"none", cursor:"pointer",
+            fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif",
+            background: settingsTab===t.id ? "#f97316" : "none",
+            color: settingsTab===t.id ? "#fff" : "rgba(255,255,255,0.45)",
+            transition:"all 0.18s",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {settingsTab === "perfil" && <>
       {/* SYNC ERROR BANNER */}
       {syncError && (
         <div className="card" style={{ background: "rgba(239, 68, 68, 0.08)", borderColor: "rgba(239, 68, 68, 0.3)", marginBottom: "16px" }}>
@@ -226,7 +252,7 @@ export default function SettingsTab({
         </div>
       ) : !user ? (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.06), rgba(255,255,255,0.01))", borderColor: "rgba(59,130,246,0.15)", marginBottom: "16px" }}>
-          <div className="syne" style={{ fontSize: "15px", fontWeight: "800", color: "#3b82f6", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+          <div className="syne" style={{ fontSize: "15px", fontWeight: "800", color: "#f97316", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
             <Cloud size={16} /> Sincronização em Nuvem
           </div>
           <div style={{ fontSize: "12.5px", color: "rgba(255,255,255,0.6)", lineHeight: "1.45", marginBottom: "16px" }}>
@@ -412,21 +438,41 @@ export default function SettingsTab({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           <div>
             <div className="label">BF Atual (%)</div>
-            <input
-              type="number"
-              placeholder="Ex: 19"
-              value={currentBf}
-              onChange={(e) => setCurrentBf(e.target.value)}
-            />
+            <input type="number" placeholder="Ex: 19" value={currentBf} onChange={(e) => setCurrentBf(e.target.value)}/>
           </div>
-          <div>
-            <div className="label">BF Meta (%)</div>
-            <input
-              type="number"
-              placeholder="Ex: 12"
-              value={goalBf}
-              onChange={(e) => setGoalBf(e.target.value)}
-            />
+          {objetivo === "cutting" ? (
+            <div>
+              <div className="label">BF Meta (%)</div>
+              <input type="number" placeholder="Ex: 12" value={goalBf} onChange={(e) => setGoalBf(e.target.value)}/>
+            </div>
+          ) : (
+            <div>
+              <div className="label">{objetivo === "bulking" ? "Peso Alvo (kg)" : "Peso Alvo (kg)"}</div>
+              <input type="number" placeholder={objetivo === "bulking" ? "Ex: 85" : "Ex: 80"}
+                value={goalWeight} onChange={(e) => setGoalWeight(e.target.value)}/>
+            </div>
+          )}
+        </div>
+
+        {/* Objetivo */}
+        <div style={{ marginBottom:"16px" }}>
+          <div className="label">Objetivo Principal</div>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:6 }}>
+            {[
+              {id:"cutting",   label:"Cutting 🔥",  color:"#ef4444", desc:"Perder gordura"},
+              {id:"bulking",   label:"Bulking 💪",  color:"#f97316", desc:"Ganhar massa"},
+              {id:"manutencao",label:"Manutenção ⚖️",color:"#f97316", desc:"Manter peso"},
+            ].map(o=>(
+              <button key={o.id} onClick={()=>setObjetivo(o.id)} style={{
+                padding:"10px 6px",borderRadius:12,border:"none",cursor:"pointer",
+                background:objetivo===o.id?o.color+"22":"rgba(255,255,255,0.05)",
+                border:objetivo===o.id?`1.5px solid ${o.color}44`:"1px solid rgba(255,255,255,0.08)",
+                textAlign:"center",
+              }}>
+                <div style={{fontSize:11,fontWeight:800,color:objetivo===o.id?o.color:"rgba(255,255,255,0.6)",fontFamily:"'DM Sans',sans-serif"}}>{o.label}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2,fontFamily:"'DM Sans',sans-serif"}}>{o.desc}</div>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -441,14 +487,14 @@ export default function SettingsTab({
           </select>
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <div className="label">Fator de Proteína</div>
-          <select value={proteinFactor} onChange={(e) => setProteinFactor(e.target.value)}>
-            <option value="1.6">1,6 g/kg (Min. científico recomendável)</option>
-            <option value="1.8">1,8 g/kg (Recomendado CuttingOS)</option>
-            <option value="2.0">2,0 g/kg (Consumo moderadamente alto)</option>
-            <option value="2.2">2,2 g/kg (Meta extrema de fisiculturista)</option>
-          </select>
+        <div style={{ marginBottom:"14px",background:"rgba(249,115,22,0.05)",border:"1px solid rgba(249,115,22,0.15)",borderRadius:12,padding:"10px 12px" }}>
+          <div style={{ fontSize:10,fontWeight:700,color:"#f97316",textTransform:"uppercase",letterSpacing:.6,marginBottom:3 }}>
+            Distribuição Mentzer (automática)
+          </div>
+          <div style={{ fontSize:12,color:"rgba(255,255,255,0.6)",lineHeight:1.6 }}>
+            60% Carboidratos · 25% Proteínas · 15% Gorduras<br/>
+            <span style={{fontSize:10,opacity:.7}}>Baseado no método Heavy Duty de Mike Mentzer</span>
+          </div>
         </div>
 
         {/* Live calculated outputs preview */}
@@ -473,23 +519,70 @@ export default function SettingsTab({
               </div>
               <div className="row-sb">
                 <span style={{ color: "rgba(255,255,255,0.5)" }}>Gasto Total Diário (TDEE):</span>
-                <span style={{ fontWeight: "600", color: "#3b82f6" }}>{liveMeta.tdee} kcal</span>
+                <span style={{ fontWeight: "600", color: "#f97316" }}>{liveMeta.tdee} kcal</span>
               </div>
               <div className="row-sb">
-                <span style={{ color: "rgba(255,255,255,0.5)" }}>Déficit Semanal Alvo:</span>
-                <span style={{ fontWeight: "600", color: "#10b981" }}>-{liveMeta.weeklyDeficitNeeded} kcal (~{liveMeta.weeklyWeightLossTargetKg}kg/sem)</span>
+                <span style={{ color: "rgba(255,255,255,0.5)" }}>
+                  {liveMeta.objetivo==="bulking"?"Superávit Semanal:":liveMeta.objetivo==="manutencao"?"Balanço Semanal:":"Déficit Semanal Alvo:"}
+                </span>
+                <span style={{ fontWeight:"600", color: liveMeta.objetivo==="bulking"?"#f97316":liveMeta.objetivo==="manutencao"?"#f97316":"#10b981" }}>
+                  {liveMeta.objetivo==="bulking"?"+":liveMeta.objetivo==="manutencao"?"≈":"-"}
+                  {liveMeta.weeklyDeficitNeeded} kcal (~{liveMeta.weeklyWeightLossTargetKg}kg/sem)
+                </span>
               </div>
-              <div className="row-sb" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px", marginTop: "4px" }}>
-                <span style={{ color: "rgba(255,255,255,0.5)" }}>Meta de Carboidrato (Normal / Pesado):</span>
-                <span style={{ fontWeight: "600" }}>{liveMeta.normal.carbs}g / {liveMeta.heavy.carbs}g</span>
-              </div>
-              <div className="row-sb">
-                <span style={{ color: "rgba(255,255,255,0.5)" }}>Meta de Proteína Diária:</span>
-                <span style={{ fontWeight: "600" }}>{liveMeta.proteinGrams}g (x{proteinFactor})</span>
+              <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:8,marginTop:4 }}>
+                <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:.6,marginBottom:6 }}>
+                  Distribuição Mentzer · Dias Normais
+                </div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6 }}>
+                  {[
+                    {label:"Carb 60%",val:liveMeta.normal.carbs,color:"#8b5cf6",unit:"g"},
+                    {label:"Prot 25%",val:liveMeta.normal.protein,color:"#3b82f6",unit:"g"},
+                    {label:"Gord 15%",val:liveMeta.normal.fat,color:"#f59e0b",unit:"g"},
+                  ].map(m=>(
+                    <div key={m.label} style={{ background:`${m.color}12`,border:`1px solid ${m.color}25`,borderRadius:10,padding:"7px 8px",textAlign:"center" }}>
+                      <div style={{ fontSize:16,fontWeight:800,color:m.color }}>{m.val}{m.unit}</div>
+                      <div style={{ fontSize:9,color:"rgba(255,255,255,0.4)",marginTop:1 }}>{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize:10,color:"rgba(255,255,255,0.35)",marginTop:6,textAlign:"center" }}>
+                  Dia Pesado: {liveMeta.heavy.carbs}g C · {liveMeta.heavy.protein}g P · {liveMeta.heavy.fat}g G · {liveMeta.heavy.kcal} kcal
+                </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Chave Groq — salva localmente no dispositivo */}
+        <div style={{ marginBottom:"14px" }}>
+          <div className="label">Chave Groq API (Coach de IA)</div>
+          <div style={{ fontSize:10,color:"rgba(255,255,255,0.35)",marginBottom:6,lineHeight:1.5 }}>
+            Grátis em <span style={{color:"#f97316"}}>console.groq.com/keys</span> · Salva só neste dispositivo
+          </div>
+          <div style={{ position:"relative" }}>
+            <input
+              type="password"
+              placeholder="gsk_..."
+              value={groqKey}
+              onChange={e=>{
+                setGroqKey(e.target.value);
+                if(typeof window!=="undefined") localStorage.setItem("hdos_groq_key", e.target.value);
+              }}
+              style={{ paddingRight:80 }}
+            />
+            {groqKey && (
+              <span style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:9,fontWeight:700,color:"#10b981",background:"rgba(16,185,129,0.15)",padding:"2px 7px",borderRadius:6 }}>
+                ✓ SALVA
+              </span>
+            )}
+          </div>
+          {groqKey && (
+            <div style={{ fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:4 }}>
+              Usada automaticamente pelo Coach e pelo guia de exercícios
+            </div>
+          )}
+        </div>
 
         <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleSaveProfile}>
           Salvar Dados do Perfil
@@ -501,7 +594,9 @@ export default function SettingsTab({
           </div>
         )}
       </div>
+      </> }
 
+      {settingsTab === "semana" && <>
       {/* WEEK SCHEDULE LIST */}
       <div className="card">
         <div className="syne" style={{ fontSize: "15px", fontWeight: "700", marginBottom: "16px" }}>
@@ -553,6 +648,7 @@ export default function SettingsTab({
           );
         })}
       </div>
+      </> }
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin { to { transform: rotate(360deg); } }
       `}} />

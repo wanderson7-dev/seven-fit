@@ -18,7 +18,7 @@ export async function GET(request) {
       `https://br.openfoodfacts.org/api/v0/product/${code}.json`,
       {
         headers: {
-          "User-Agent": "SevenFit-CuttingOS/1.0 (wanderson7.dev@gmail.com)",
+          "User-Agent": "HeavyDutyOS/1.0 (wanderson7.dev@gmail.com)",
         },
       }
     );

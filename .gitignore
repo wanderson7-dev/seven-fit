@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# áudios temporários de transcrição
+data/.tmp-audio/
+

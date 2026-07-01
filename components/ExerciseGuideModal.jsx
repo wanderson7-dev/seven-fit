@@ -1,275 +1,270 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Flame, Star, AlertTriangle, X } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { X, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+
+const IMAGE_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
+
+function getCached(key) {
+  try { return JSON.parse(sessionStorage.getItem("guide_" + key)); } catch { return null; }
+}
+function setCached(key, data) {
+  try { sessionStorage.setItem("guide_" + key, JSON.stringify(data)); } catch {}
+}
 
 export default function ExerciseGuideModal({ isOpen, onClose, exerciseName }) {
   const [loading, setLoading] = useState(false);
   const [guide, setGuide] = useState(null);
   const [error, setError] = useState("");
-  const [apiMessage, setApiMessage] = useState("");
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [page, setPage] = useState(0); // 0=imagem+músculos, 1=preparo, 2=execução, 3=erros
 
   useEffect(() => {
-    if (!guide?.images || guide.images.length <= 1) {
-      setCurrentImageIndex(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % guide.images.length);
-    }, 850);
-    return () => clearInterval(interval);
-  }, [guide?.images]);
-
-  useEffect(() => {
-    if (!isOpen || !exerciseName) return;
-
-    const fetchGuide = async () => {
-      setLoading(true);
-      setError("");
-      setApiMessage("");
-      try {
-        const res = await fetch(`/api/exercise-guide?name=${encodeURIComponent(exerciseName)}`);
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setGuide(data.guide);
-          if (data.message) {
-            setApiMessage(data.message);
-          }
-        } else {
-          setError(data.error || "Não foi possível carregar o guia.");
-        }
-      } catch (err) {
-        setError("Erro de rede ao buscar o guia.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGuide();
+    if (!isOpen || !exerciseName) { setGuide(null); setError(""); setPage(0); setFrame(0); return; }
+    const cached = getCached(exerciseName);
+    if (cached) { setGuide(cached); return; }
+    setLoading(true);
+    const groqKey = (typeof window !== "undefined" && localStorage.getItem("hdos_groq_key")) || "";
+    fetch(`/api/exercise-guide?name=${encodeURIComponent(exerciseName)}`, {
+      headers: groqKey ? { "x-groq-key": groqKey } : {},
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) { setGuide(data.guide); setCached(exerciseName, data.guide); }
+        else setError(data.error || "Erro ao carregar guia.");
+      })
+      .catch(() => setError("Erro de rede."))
+      .finally(() => setLoading(false));
   }, [isOpen, exerciseName]);
+
+  // Animação das imagens
+  useEffect(() => {
+    if (!playing || !guide?.images || guide.images.length < 2) return;
+    const id = setInterval(() => setFrame(f => (f + 1) % guide.images.length), 850);
+    return () => clearInterval(id);
+  }, [playing, guide?.images]);
+
+  const handleBackdrop = useCallback(e => { if (e.target === e.currentTarget) onClose(); }, [onClose]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const fn = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
+  const images = guide?.images ?? [];
+  const hasImg = images.length > 0;
+
+  const PAGES = [
+    { label: "Visão Geral", icon: "👁" },
+    { label: "Preparação", icon: "📐" },
+    { label: "Execução",   icon: "✅" },
+    { label: "Erros",      icon: "⚠️" },
+  ];
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.93)",
-        zIndex: 600,
-        overflowY: "auto",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px",
-      }}
-    >
-      <div
-        className="modal-sheet"
-        style={{
-          position: "relative",
-          bottom: "auto",
-          left: "auto",
-          transform: "none",
-          width: "100%",
-          maxWidth: "460px",
-          borderRadius: "20px",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
-          animation: "scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-          maxHeight: "85vh",
-          display: "flex",
-          flexDirection: "column",
-          padding: 0,
-          overflow: "hidden",
-        }}
-      >
-        {/* HEADER */}
-        <div
-          className="row-sb"
-          style={{
-            padding: "20px 24px 16px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            background: "#161624",
-          }}
-        >
-          <div>
-            <div className="small" style={{ textTransform: "uppercase", fontSize: "9px", letterSpacing: "1px" }}>
-              Guia de Execução
+    <div onClick={handleBackdrop} style={{
+      position: "fixed", inset: 0, zIndex: 600,
+      background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "16px",
+    }}>
+      <div style={{
+        width: "100%", maxWidth: 460,
+        background: "linear-gradient(170deg,#15151f 0%,#0c0c14 100%)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 24, overflow: "hidden",
+        maxHeight: "88dvh", display: "flex", flexDirection: "column",
+      }}>
+
+        {/* ── Header compacto ────────────────────────────────── */}
+        <div style={{
+          padding: "14px 16px 12px", flexShrink: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>
+              Como Executar
             </div>
-            <div className="syne" style={{ fontSize: "16px", fontWeight: "800", color: "#f97316" }}>
+            <div className="syne" style={{ fontSize: 15, fontWeight: 800, color: "#f97316", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {exerciseName}
             </div>
           </div>
-          <button
-            className="btn btn-ghost"
-            style={{ padding: "6px 12px", fontSize: "12px", border: "none", background: "rgba(255,255,255,0.04)" }}
-            onClick={onClose}
-          >
-            ✕ Fechar
+          <button onClick={onClose} style={{
+            background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 10,
+            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "rgba(255,255,255,0.7)", flexShrink: 0,
+          }}>
+            <X size={15} />
           </button>
         </div>
 
-        {/* CONTENT */}
-        <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
+        {/* ── Navegação por abas ─────────────────────────────── */}
+        <div style={{
+          display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)",
+          flexShrink: 0, overflowX: "auto",
+        }}>
+          {PAGES.map((p, i) => (
+            <button key={i} onClick={() => setPage(i)} style={{
+              flex: 1, minWidth: 70, padding: "9px 4px", border: "none", cursor: "pointer",
+              background: "none", fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans',sans-serif",
+              color: page === i ? "#f97316" : "rgba(255,255,255,0.35)",
+              borderBottom: page === i ? "2px solid #f97316" : "2px solid transparent",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+              transition: "color 0.15s",
+            }}>
+              <span style={{ fontSize: 14 }}>{p.icon}</span>
+              <span>{p.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Conteúdo ───────────────────────────────────────── */}
+        <div style={{ overflowY: "auto", flex: 1, padding: "14px 16px 20px" }}>
           {loading && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 0", gap: "16px" }}>
-              <div style={{ width: "24px", height: "24px", border: "2px solid rgba(255,255,255,0.05)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-              <div className="small" style={{ letterSpacing: "0.5px" }}>Analisando biomecânica do exercício...</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0", gap: 12 }}>
+              <div style={{ width: 22, height: 22, border: "2px solid rgba(255,255,255,0.06)", borderTopColor: "#f97316", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>Carregando guia...</div>
             </div>
           )}
 
           {error && (
-            <div style={{ color: "#ef4444", fontSize: "13px", textAlign: "center", padding: "20px" }}>
-              {error}
-            </div>
+            <div style={{ color: "#ef4444", fontSize: 13, textAlign: "center", padding: "20px 0" }}>{error}</div>
           )}
 
           {!loading && !error && guide && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-              
-              {/* Target Muscles */}
-              <div>
-                <div className="label">Foco Muscular</div>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: "700", background: "rgba(249,115,22,0.15)", color: "#f97316", padding: "4px 8px", borderRadius: "6px", border: "1px solid rgba(249,115,22,0.25)", display: "flex", alignItems: "center", gap: "4px" }}>
-                    <Flame size={12} /> Primário: {guide.musclePrimary}
-                  </span>
-                  {guide.muscleSecondary && (
-                    <span style={{ fontSize: "10px", fontWeight: "600", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.7)", padding: "4px 8px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                      Auxiliares: {guide.muscleSecondary}
-                    </span>
+            <>
+              {/* Página 0: Visão Geral */}
+              {page === 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* Imagem animada */}
+                  {hasImg && (
+                    <div style={{ position: "relative", background: "#0a0a12", borderRadius: 14, overflow: "hidden" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={IMAGE_BASE + images[frame]}
+                        alt={exerciseName}
+                        onError={e => { e.target.parentElement.style.display = "none"; }}
+                        style={{ width: "100%", aspectRatio: "4/3", objectFit: "contain", display: "block", background: "#0a0a12", padding: 8 }}
+                      />
+                      {images.length > 1 && (
+                        <div style={{
+                          position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
+                          display: "flex", alignItems: "center", gap: 6,
+                          background: "rgba(0,0,0,0.6)", borderRadius: 20, padding: "4px 10px",
+                        }}>
+                          <button onClick={() => { setPlaying(false); setFrame(f => (f - 1 + images.length) % images.length); }}
+                            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", padding: 1 }}>
+                            <ChevronLeft size={13} />
+                          </button>
+                          {images.map((_, i) => (
+                            <div key={i} onClick={() => { setPlaying(false); setFrame(i); }} style={{
+                              width: frame === i ? 14 : 5, height: 5, borderRadius: 3, cursor: "pointer",
+                              background: frame === i ? "#f97316" : "rgba(255,255,255,0.3)", transition: "all 0.2s",
+                            }} />
+                          ))}
+                          <button onClick={() => { setPlaying(false); setFrame(f => (f + 1) % images.length); }}
+                            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", padding: 1 }}>
+                            <ChevronRight size={13} />
+                          </button>
+                          <button onClick={() => setPlaying(p => !p)} style={{
+                            background: "rgba(249,115,22,0.85)", border: "none", borderRadius: 5,
+                            color: "#fff", fontSize: 9, fontWeight: 700, fontFamily: "'DM Sans',sans-serif",
+                            padding: "2px 7px", cursor: "pointer",
+                          }}>{playing ? "⏸" : "▶"}</button>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </div>
-              </div>
 
-              {/* Execution Images (Animated Loop) */}
-              {guide.images && guide.images.length > 0 && (
-                <div>
-                  <div className="label" style={{ marginBottom: "6px" }}>Execução Animada</div>
-                  <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
-                    <img
-                      src={`https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${guide.images[currentImageIndex]}`}
-                      alt={`${exerciseName} - Passo ${currentImageIndex + 1}`}
-                      style={{
-                        width: "100%",
-                        maxWidth: "320px",
-                        height: "auto",
-                        aspectRatio: "1.2",
-                        objectFit: "contain",
-                        borderRadius: "16px",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        background: "#0a0a14",
-                        padding: "6px"
-                      }}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                    {guide.images.length > 1 && (
-                      <div style={{
-                        position: "absolute",
-                        bottom: "8px",
-                        background: "rgba(0,0,0,0.6)",
-                        padding: "3px 8px",
-                        borderRadius: "8px",
-                        fontSize: "9px",
-                        fontWeight: "700",
-                        color: "#f97316",
-                        letterSpacing: "0.5px"
-                      }}>
-                        QUADRO {currentImageIndex + 1}/{guide.images.length}
+                  {/* Músculos */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 12, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "#f97316", textTransform: "uppercase", letterSpacing: .6, marginBottom: 4 }}>Principal</div>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{guide.musclePrimary}</div>
+                    </div>
+                    {guide.muscleSecondary && (
+                      <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: .6, marginBottom: 4 }}>Auxiliares</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>{guide.muscleSecondary}</div>
                       </div>
                     )}
                   </div>
-                </div>
-              )}
 
-              {/* Setup checklist */}
-              <div>
-                <div className="label" style={{ marginBottom: "6px" }}>1. Preparação e Postura</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {guide.setup.map((step, idx) => (
-                    <div key={idx} style={{ display: "flex", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)" }}>
-                      <span style={{ color: "#f97316", fontWeight: "700", minWidth: "15px" }}>{idx + 1}.</span>
-                      <span>{step}</span>
+                  {/* Dica rápida */}
+                  {guide.proTip && (
+                    <div style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.18)", borderRadius: 12, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "#f97316", textTransform: "uppercase", letterSpacing: .6, marginBottom: 4 }}>⭐ Dica de Ouro</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.55, fontStyle: "italic" }}>
+                        {`"${guide.proTip}"`}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  )}
 
-              {/* Execution steps */}
-              <div>
-                <div className="label" style={{ marginBottom: "6px" }}>2. Execução do Movimento</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {guide.execution.map((step, idx) => (
-                    <div key={idx} style={{ display: "flex", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)" }}>
-                      <span style={{ color: "#10b981", fontWeight: "700", minWidth: "15px" }}>✓</span>
-                      <span>{step}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pro Tip */}
-              {guide.proTip && (
-                <div
-                  style={{
-                    background: "rgba(249,115,22,0.04)",
-                    border: "1px solid rgba(249,115,22,0.2)",
-                    borderRadius: "14px",
-                    padding: "12px 16px",
-                  }}
-                >
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#f97316", display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                    <Star size={12} fill="#f97316" /> Dica de Ouro
-                  </div>
-                  <div style={{ fontSize: "12.5px", color: "rgba(255,255,255,0.85)", fontStyle: "italic", lineHeight: "1.4" }}>
-                    {`"${guide.proTip}"`}
+                  <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                    <button onClick={() => setPage(1)} className="btn btn-primary" style={{ flex: 1, fontSize: 12, padding: "10px 6px", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      📐 Ver Preparação
+                    </button>
+                    <button onClick={() => setPage(2)} className="btn btn-ghost" style={{ flex: 1, fontSize: 12, padding: "10px 6px", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      ✅ Ver Execução
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* Common mistakes */}
-              <div>
-                <div className="label" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: "6px" }}><AlertTriangle size={14} /> Erros Comuns a Evitar</div>
-                <div
-                  style={{
-                    background: "rgba(239,68,68,0.04)",
-                    border: "1px solid rgba(239,68,68,0.15)",
-                    borderRadius: "14px",
-                    padding: "12px 16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                    marginTop: "6px"
-                  }}
-                >
-                  {guide.mistakes.map((mistake, idx) => (
-                    <div key={idx} style={{ display: "flex", gap: "8px", fontSize: "12px", color: "rgba(255,255,255,0.8)", alignItems: "flex-start" }}>
-                      <X size={12} style={{ color: "#ef4444", flexShrink: 0, marginTop: "2px" }} />
-                      <span>{mistake}</span>
+              {/* Página 1: Preparação */}
+              {page === 1 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4 }}>
+                    Posicionamento e Preparação
+                  </div>
+                  {(guide.setup ?? []).map((step, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)", color: "#f97316", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)", lineHeight: 1.55 }}>{step}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
 
-              {/* API Info Message */}
-              {apiMessage && (
-                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.1)", borderRadius: "10px", padding: "10px", fontSize: "11px", color: "rgba(255,255,255,0.4)", textAlign: "center", lineHeight: "1.3" }}>
-                  💡 {apiMessage}
+              {/* Página 2: Execução */}
+              {page === 2 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4 }}>
+                    Execução do Movimento
+                  </div>
+                  {(guide.execution ?? guide.instructions ?? []).map((step, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(16,185,129,0.04)", borderRadius: 12, border: "1px solid rgba(16,185,129,0.12)" }}>
+                      <span style={{ flexShrink: 0, fontSize: 12, color: "#10b981", fontWeight: 800, paddingTop: 2 }}>✓</span>
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)", lineHeight: 1.55 }}>{step}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 
-            </div>
+              {/* Página 3: Erros */}
+              {page === 3 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4 }}>
+                    ⚠️ Erros Comuns a Evitar
+                  </div>
+                  {(guide.mistakes ?? []).map((m, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(239,68,68,0.05)", borderRadius: 12, border: "1px solid rgba(239,68,68,0.15)" }}>
+                      <X size={13} style={{ color: "#ef4444", flexShrink: 0, marginTop: 2 }} />
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)", lineHeight: 1.55 }}>{m}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes scaleUp {
-          from { transform: scale(0.95); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-      `}} />
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}` }} />
     </div>
   );
 }
