@@ -20,6 +20,7 @@ import ScannerModal from "@/components/ScannerModal";
 import EditDayModal from "@/components/EditDayModal";
 import HistoryModal from "@/components/HistoryModal";
 import ExerciseGuideModal from "@/components/ExerciseGuideModal";
+import { useRestTimer, useRestTimerTrigger } from "@/components/RestTimer";
 import exercisesDb from "@/lib/exercises-ptbr.json";
 import foodsPtbr from "@/lib/foods-ptbr.json";
 
@@ -49,57 +50,69 @@ const DEFAULT_MEAL_PLAN = {
   ]
 };
 // Biblioteca completa por grupamento (para selecionar ao montar o plano)
+// IMPORTANTE: os nomes abaixo foram auditados um a um contra lib/exercises-ptbr.json para
+// que cada um resolva por CORRESPONDÊNCIA EXATA (não por aproximação) ao exercício certo —
+// com a imagem e instrução corretas. Antes, nomes genéricos como "Supino Reto" ou "Agachamento
+// Livre" não existiam de forma exata no banco (que usa nomes mais específicos, ex: "Supino Reto
+// com Barra - Pegada Média"), então caíam no algoritmo de aproximação e várias vezes acertavam o
+// exercício errado (ex: "Tríceps Corda" caía em "Pular Corda", "Cadeira Extensora" caía em
+// "Cadeira Flexora"). Também estavam faltando vários exercícios simples e básicos, como o
+// Levantamento Terra tradicional — foram adicionados. Se for alterar/adicionar um nome aqui,
+// confira antes que ele existe EXATAMENTE (mesmas letras/acentos) em lib/exercises-ptbr.json.
 const DEFAULT_EXERCISES = {
   // PUSH — Peito + Ombro + Tríceps
   Push: [
-    "Supino Reto", "Supino Inclinado", "Supino Declinado", "Crucifixo", "Crucifixo Inclinado", "Pec Deck", "Crossover",
-    "Desenvolvimento com Barra", "Desenvolvimento com Halteres", "Elevação Lateral", "Elevação Frontal", "Encolhimento", "Face Pull",
-    "Tríceps Corda", "Tríceps Testa", "Tríceps Francês", "Tríceps Banco", "Mergulho", "Extensão Tríceps"
+    "Supino Reto com Barra - Pegada Média", "Supino Inclinado com Barra - Pegada Média", "Supino Declinado com Barra",
+    "Crucifixo com Halteres", "Crucifixo Inclinado com Halteres", "Crossover na Polia",
+    "Desenvolvimento Militar com Barra", "Desenvolvimento com Halteres em Pé", "Elevação Lateral", "Elevação Frontal com Barra em Pé",
+    "Encolhimento de Ombros com Barra", "Face Pull",
+    "Tríceps Pulley com Corda", "Tríceps Testa com Barra W", "Tríceps Francês na Polia Deitado", "Mergulho no Banco",
+    "Extensão de Tríceps com Halter Unilateral", "Flexões", "Press Arnold com Halteres", "Tríceps Coice com Halter"
   ],
   // PULL — Costas + Bíceps + Posterior de Ombro
   Pull: [
-    "Puxada Frente", "Puxada Neutra", "Puxada Fechada", "Barra Fixa", "Pullover",
-    "Remada Curvada", "Remada Unilateral", "Remada Cavalinho", "Remada Sentado", "Serrote",
-    "Rosca Direta", "Rosca Martelo", "Rosca Concentrada", "Rosca 21", "Rosca Inversa", "Rosca Scott",
-    "Crucifixo Invertido com Halteres", "Crucifixo Invertido na Máquina", "Face Pull"
+    "Pulldown com Pegada Larga", "Puxada no Pulley com Barra V", "Pulldown Frente em Pegada Fechada", "Barra Fixa",
+    "Pullover com Halter e Braços Flexionados", "Remada Curvada com Barra", "Remada Unilateral com Halter",
+    "Remada T-Bar Deitado", "Remada Sentada no Pulley", "Rosca Direta com Barra", "Rosca Martelo", "Rosca Concentrada",
+    "Rosca Inversa com Halteres em Pé", "Rosca Scott", "Crucifixo Inverso", "Crucifixo Invertido na Máquina", "Face Pull",
+    "Levantamento Terra com Barra"
   ],
   // LEGS — Pernas completo
   Legs: [
-    "Agachamento Livre", "Agachamento Smith", "Agachamento Sumô", "Leg Press", "Hack Squat",
-    "Cadeira Extensora", "Mesa Flexora", "Cadeira Adutora", "Cadeira Abdutora",
-    "Stiff", "Avanço", "Avanço com Barra", "Agachamento Búlgaro",
-    "Panturrilha em Pé", "Panturrilha Sentado", "Panturrilha no Leg Press"
+    "Agachamento Livre com Barra", "Agachamento no Smith", "Agachamento Sumô com Halter", "Leg Press",
+    "Agachamento Hack com Barra", "Extensão de Pernas", "Mesa Flexora", "Cadeira Flexora", "Adutor de Coxas", "Abdutor de Coxas",
+    "Levantamento Terra com Pernas Rígidas", "Afundo com Halteres", "Afundo com Barra", "Agachamento Búlgaro Suspenso",
+    "Levantamento Terra com Barra", "Levantamento Terra Romeno", "Elevação Pélvica com Barra",
+    "Elevação de Panturrilha em Pé", "Elevação de Panturrilha Sentada", "Press de Panturrilha na Máquina de Leg Press"
   ],
   // UPPER — Peito + Ombro + Tríceps + Costas
   Upper: [
-    "Supino Reto", "Supino Inclinado", "Crucifixo", "Pec Deck",
-    "Desenvolvimento com Halteres", "Elevação Lateral", "Face Pull",
-    "Tríceps Corda", "Tríceps Testa",
-    "Puxada Frente", "Remada Curvada", "Remada Unilateral", "Pullover"
+    "Supino Reto com Barra - Pegada Média", "Supino Inclinado com Barra - Pegada Média", "Crucifixo com Halteres",
+    "Crossover na Polia", "Desenvolvimento com Halteres em Pé", "Elevação Lateral", "Face Pull",
+    "Tríceps Pulley com Corda", "Tríceps Testa com Barra W", "Pulldown com Pegada Larga", "Remada Curvada com Barra",
+    "Remada Unilateral com Halter", "Pullover com Halter e Braços Flexionados", "Levantamento Terra com Barra"
   ],
   // LOWER — Pernas + Bíceps
   Lower: [
-    "Agachamento Livre", "Leg Press", "Cadeira Extensora", "Mesa Flexora", "Stiff",
-    "Avanço", "Panturrilha em Pé", "Panturrilha Sentado",
-    "Rosca Direta", "Rosca Martelo", "Rosca Concentrada"
+    "Agachamento Livre com Barra", "Leg Press", "Extensão de Pernas", "Mesa Flexora", "Cadeira Flexora",
+    "Levantamento Terra com Pernas Rígidas", "Levantamento Terra Romeno", "Levantamento Terra com Barra", "Afundo com Halteres", "Elevação Pélvica com Barra",
+    "Elevação de Panturrilha em Pé", "Elevação de Panturrilha Sentada", "Rosca Direta com Barra", "Rosca Martelo", "Rosca Concentrada"
   ],
   // COMPLEMENTARES — Abdômen + Panturrilha + Lombar (dia dedicado, separado do treino principal)
   Complementares: [
-    "Prancha", "Abdominal na Polia", "Abdominal Infra", "Elevação de Pernas", "Roda Abdominal",
-    "Abdominal Bicicleta", "Abdominal Oblíquo",
-    "Panturrilha em Pé", "Panturrilha Sentado", "Panturrilha no Leg Press",
-    "Hiperextensão Lombar"
+    "Prancha", "Abdominal na Polia", "Abdominal Infra na Polia", "Elevação de Pernas na Barra", "Roda Abdominal",
+    "Abdominal Inverso", "Abdominais Oblíquos",
+    "Elevação de Panturrilha em Pé", "Elevação de Panturrilha Sentada", "Press de Panturrilha na Máquina de Leg Press",
+    "Hiperextensões (Extensões Lombares)"
   ]
 };
 
-// Plano padrão de exercícios por treino (o usuário pode personalizar)
-const DEFAULT_WORKOUT_PLANS = {
-  Push: ["Supino Reto", "Supino Inclinado", "Crucifixo", "Desenvolvimento com Halteres", "Elevação Lateral", "Tríceps Corda", "Tríceps Testa"],
-  Pull: ["Puxada Frente", "Remada Curvada", "Remada Unilateral", "Pullover", "Rosca Direta", "Rosca Martelo"],
-  Legs: ["Agachamento Livre", "Leg Press", "Cadeira Extensora", "Mesa Flexora", "Stiff", "Panturrilha em Pé"],
-  Upper: ["Supino Reto", "Desenvolvimento com Halteres", "Elevação Lateral", "Puxada Frente", "Remada Curvada", "Tríceps Corda"],
-  Lower: ["Leg Press", "Stiff", "Mesa Flexora", "Cadeira Extensora", "Panturrilha em Pé", "Rosca Direta", "Rosca Martelo"],
-};
+// IMPORTANTE: propositalmente NÃO existe um "plano padrão" com exercícios pré-definidos.
+// Cada divisão (Push/Pull/Legs/Upper/Lower/qualquer nome customizado) começa vazia e só
+// ganha exercícios quando o próprio usuário os adiciona — na aba "Plano" ou direto numa
+// sessão de treino. Isso é intencional: um plano "pré-preenchido" reaparecia sozinho
+// mesmo depois de o usuário apagá-lo (porque o preenchimento automático era reaplicado
+// a cada renderização), então a exclusão de divisões parecia não funcionar.
 const DEFAULT_SCHEDULE = [
   { day: "Seg", type: "Push", color: "#f97316", calType: "normal", group: "Push" },
   { day: "Ter", type: "Pull", color: "#3b82f6", calType: "normal", group: "Pull" },
@@ -171,7 +184,8 @@ export default function Home() {
     customFoods: [],
     customExercises: {},
     customMuscleMap: {}, // { [exerciseName]: muscle } para exercícios criados pelo usuário
-    workoutPlans: DEFAULT_WORKOUT_PLANS,
+    customExerciseMeta: {}, // { [exerciseName]: { secondary, equipment } } dados extras do exercício customizado
+    workoutPlans: {},
     schedule: DEFAULT_SCHEDULE,
     progressPhotos: [],
     // Session state
@@ -189,6 +203,29 @@ export default function Home() {
   const [historyExName, setHistoryExName] = useState("");
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [guideExName, setGuideExName] = useState("");
+
+  // Cronômetro de descanso: o hook fica no nível raiz do app (não dentro da aba
+  // Treino) para que trocar de aba não resete o tempo restante. O ícone visual,
+  // porém, é renderizado dentro do quadro "Treino de Hoje" (veja WorkoutTab) — antes
+  // ficava fixo flutuando na tela e cobria o botão do Coach de IA.
+  const [restTimerSignal, fireRestTimer] = useRestTimerTrigger();
+  const [restTimerExName, setRestTimerExName] = useState("");
+  const restTimer = useRestTimer(restTimerSignal, restTimerExName);
+  const syncInFlightRef = React.useRef(null);
+  // Sempre aponta pro state mais recente — necessário porque handleUserSignIn é um
+  // useCallback com dependências vazias (closure fixa) mas precisa checar o state atual
+  // de forma síncrona antes de decidir se confia numa resposta "vazia" da nuvem.
+  const prevStateRef = React.useRef(state);
+  useEffect(() => { prevStateRef.current = state; }, [state]);
+
+  // Rede de segurança: mesmo com o deadlock do onAuthStateChange corrigido, uma conexão
+  // muito lenta ou instável não deveria conseguir deixar a tela "sincronizando" para
+  // sempre. Se a chamada não responder em 20s, desiste e mostra erro em vez de travar.
+  const withTimeout = (promise, ms = 30000) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Tempo de sincronização esgotado. Verifique sua conexão.")), ms)),
+    ]);
   // ── HYDRATION & LOADING STATE ──────────────────────────────────────────────
   const loadLocalState = () => {
     try {
@@ -208,6 +245,7 @@ export default function Home() {
 
       const workoutPlansRaw = localStorage.getItem("co_workoutPlans");
       const customMuscleMapRaw = localStorage.getItem("co_customMuscleMap");
+      const customExerciseMetaRaw = localStorage.getItem("co_customExerciseMeta");
       return {
         foodLogs: (foodLogs && JSON.parse(foodLogs)) || [],
         workoutLogs: (workoutLogs && JSON.parse(workoutLogs)) || [],
@@ -215,7 +253,11 @@ export default function Home() {
         customFoods: (customFoods && JSON.parse(customFoods)) || [],
         customExercises: (customExercises && JSON.parse(customExercises)) || {},
         customMuscleMap: (customMuscleMapRaw && JSON.parse(customMuscleMapRaw)) || {},
-        workoutPlans: (workoutPlansRaw && JSON.parse(workoutPlansRaw)) || DEFAULT_WORKOUT_PLANS,
+        customExerciseMeta: (customExerciseMetaRaw && JSON.parse(customExerciseMetaRaw)) || {},
+        // Nenhum preenchimento automático aqui: o que o usuário salvou é exatamente o que
+        // volta. Uma divisão que ele nunca configurou (ou que ele excluiu) simplesmente não
+        // existe como chave — e é tratada como lista vazia em todo o resto do app.
+        workoutPlans: (workoutPlansRaw && JSON.parse(workoutPlansRaw)) || {},
         schedule: (parsedSchedule && parsedSchedule.length === 7) ? parsedSchedule : DEFAULT_SCHEDULE,
         progressPhotos: (progressPhotos && JSON.parse(progressPhotos)) || [],
         selectedFood: null,
@@ -236,8 +278,9 @@ export default function Home() {
       localStorage.setItem("co_customFoods", JSON.stringify(data.customFoods || []));
       localStorage.setItem("co_customExercises", JSON.stringify(data.customExercises || {}));
       localStorage.setItem("co_customMuscleMap", JSON.stringify(data.customMuscleMap || {}));
-      localStorage.setItem("co_workoutPlans", JSON.stringify(data.workoutPlans || DEFAULT_WORKOUT_PLANS));
-      localStorage.setItem("co_schedule", JSON.stringify(data.schedule || DEFAULT_SCHEDULE));
+      localStorage.setItem("co_customExerciseMeta", JSON.stringify(data.customExerciseMeta || {}));
+      localStorage.setItem("co_workoutPlans", JSON.stringify(data.workoutPlans || {}));
+      localStorage.setItem("co_schedule", JSON.stringify((data.schedule && data.schedule.length === 7) ? data.schedule : DEFAULT_SCHEDULE));
       localStorage.setItem("co_progressPhotos", JSON.stringify(data.progressPhotos || []));
       localStorage.setItem("co_profile", JSON.stringify(data.profile || DEFAULT_PROFILE));
       localStorage.setItem("co_mealPlan", JSON.stringify(data.mealPlan || DEFAULT_MEAL_PLAN));
@@ -334,6 +377,15 @@ export default function Home() {
       customMuscleMap: mergedCustomMuscleMap,
       progressPhotos: mergedProgressPhotos,
       schedule: (cloudData.schedule && cloudData.schedule.length === 7) ? cloudData.schedule : localState.schedule,
+      // Planos de treino: mescla por grupo, sem nenhum preenchimento automático — o que
+      // não existir aqui simplesmente não existe (divisão vazia até o usuário adicionar
+      // algo). A nuvem é a fonte da verdade pros grupos que já foram sincronizados (evita
+      // reviver uma lista antiga só porque ela ainda está em cache local), mas mantém
+      // grupos que só existem localmente (ex: criados agora mesmo, offline).
+      workoutPlans: {
+        ...(localState.workoutPlans || {}),
+        ...((cloudData.workoutPlans && Object.keys(cloudData.workoutPlans).length) ? cloudData.workoutPlans : {}),
+      },
       profile: cloudData.profile ? { ...localState.profile, ...cloudData.profile } : localState.profile,
       mealPlan: cloudData.mealPlan || localState.mealPlan,
       selectedFood: null
@@ -450,31 +502,87 @@ export default function Home() {
   };
 
   const handleUserSignIn = React.useCallback(async (currUser) => {
+    // Evita rodar a sincronização inteira duas vezes em paralelo: o Supabase dispara
+    // onAuthStateChange imediatamente com a sessão atual assim que o app se inscreve nele,
+    // e getSession() também resolve por conta própria logo em seguida — sem essa trava,
+    // dois fetches concorrentes da nuvem corriam ao mesmo tempo e podiam se sobrepor.
+    if (syncInFlightRef.current === currUser.id) return;
+    syncInFlightRef.current = currUser.id;
     setIsSyncing(true);
     setSyncError(null);
     try {
-      const dbData = await db.fetchUserData(currUser.id);
+      const dbData = await withTimeout(db.fetchUserData(currUser.id));
       if (dbData) {
-        let merged;
-        setState((prev) => {
-          merged = mergeLocalAndCloudState(prev, dbData);
-          cacheToLocal(merged);
-          return merged;
-        });
+        // Rede de segurança: se a nuvem voltou praticamente vazia (não é erro — só zero
+        // linhas, o que pode acontecer por uma falha passageira, ex: a query rodando um
+        // instante antes da sessão de autenticação estar totalmente propagada) enquanto
+        // o dispositivo já tem dados reais salvos localmente, isso é suspeito demais pra
+        // confiar. Sem essa checagem, esse tipo de resposta vazia sobrescrevia dados de
+        // verdade — exatamente o "às vezes sincroniza e apaga tudo" relatado.
+        const cloudLooksEmpty =
+          (dbData.foodLogs || []).length === 0 &&
+          (dbData.workoutLogs || []).length === 0 &&
+          (dbData.weightLogs || []).length === 0 &&
+          (dbData.customFoods || []).length === 0 &&
+          (dbData.schedule || []).length === 0;
+        const localHasRealData =
+          (prevStateRef.current.foodLogs || []).length > 0 ||
+          (prevStateRef.current.workoutLogs || []).length > 0 ||
+          (prevStateRef.current.weightLogs || []).length > 0;
 
-        // Trigger background sync
-        try {
-          const syncedState = await syncUnsyncedDataToCloud(currUser.id, merged, dbData);
-          setState(syncedState);
-          cacheToLocal(syncedState);
-        } catch (syncErr) {
-          console.error("Failed background sync:", syncErr);
+        if (cloudLooksEmpty && localHasRealData) {
+          console.warn("Cloud fetch veio vazio mas há dados locais reais — tentando de novo antes de confiar.");
+          // Uma segunda tentativa geralmente resolve problemas de timing passageiros.
+          const retryData = await withTimeout(db.fetchUserData(currUser.id)).catch(() => null);
+          const retryLooksEmpty = !retryData || (
+            (retryData.foodLogs || []).length === 0 &&
+            (retryData.workoutLogs || []).length === 0 &&
+            (retryData.weightLogs || []).length === 0 &&
+            (retryData.customFoods || []).length === 0 &&
+            (retryData.schedule || []).length === 0
+          );
+          if (retryLooksEmpty) {
+            // Ainda vazio depois de tentar de novo: mantém os dados locais como estão e
+            // não sincroniza nada agora — mais seguro que apagar algo que pode ser real.
+            console.warn("Nuvem continua vazia após nova tentativa — mantendo dados locais intactos por segurança.");
+            setSyncError("Não foi possível confirmar os dados na nuvem com segurança. Seus dados locais foram mantidos.");
+          } else {
+            let merged;
+            setState((prev) => {
+              merged = mergeLocalAndCloudState(prev, retryData);
+              cacheToLocal(merged);
+              return merged;
+            });
+            try {
+              const syncedState = await syncUnsyncedDataToCloud(currUser.id, merged, retryData);
+              setState(syncedState);
+              cacheToLocal(syncedState);
+            } catch (syncErr) {
+              console.error("Failed background sync:", syncErr);
+            }
+          }
+        } else {
+          let merged;
+          setState((prev) => {
+            merged = mergeLocalAndCloudState(prev, dbData);
+            cacheToLocal(merged);
+            return merged;
+          });
+
+          // Trigger background sync
+          try {
+            const syncedState = await syncUnsyncedDataToCloud(currUser.id, merged, dbData);
+            setState(syncedState);
+            cacheToLocal(syncedState);
+          } catch (syncErr) {
+            console.error("Failed background sync:", syncErr);
+          }
         }
       } else {
         const currentLocal = loadLocalState();
         if (currentLocal) {
-          await db.migrateLocalData(currUser.id, currentLocal);
-          const syncedData = await db.fetchUserData(currUser.id);
+          await withTimeout(db.migrateLocalData(currUser.id, currentLocal));
+          const syncedData = await withTimeout(db.fetchUserData(currUser.id));
           if (syncedData) {
             setState((prev) => {
               const newState = mergeLocalAndCloudState(prev, syncedData);
@@ -490,6 +598,7 @@ export default function Home() {
     } finally {
       setIsHydrated(true);
       setIsSyncing(false);
+      syncInFlightRef.current = null;
     }
   }, []);
 
@@ -518,12 +627,22 @@ export default function Home() {
         }
       });
 
-      // Subscribe to auth state changes
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Subscribe to auth state changes.
+      // IMPORTANTE: o callback NÃO pode ser async nem dar "await" direto numa cadeia
+      // pesada de chamadas ao Supabase (como handleUserSignIn → fetchUserData → várias
+      // queries). O supabase-js v2 mantém um lock interno de autenticação enquanto
+      // processa este callback; awaitar outras chamadas do Supabase de dentro dele pode
+      // travar esperando esse mesmo lock — a promise nunca resolve, e por isso a tela
+      // ficava "sincronizando" para sempre. O jeito correto (recomendado pelo próprio
+      // Supabase) é adiar esse trabalho pesado com setTimeout(0), rodando fora do
+      // callback, numa nova task.
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (session) {
           setUser(session.user);
           setIsHydrated(true);
-          if (handleUserSignInRef.current) await handleUserSignInRef.current(session.user);
+          setTimeout(() => {
+            if (handleUserSignInRef.current) handleUserSignInRef.current(session.user);
+          }, 0);
         } else {
           setUser(null);
           const updatedLocal = loadLocalState();
@@ -561,9 +680,10 @@ export default function Home() {
   };
 
   const todaySched = () => {
-    console.log("DEBUG: state is", state);
-    console.log("DEBUG: state.schedule is", state ? state.schedule : "state_is_null");
-    return (state.schedule || DEFAULT_SCHEDULE).find((s) => s.day === getDOW()) || (state.schedule || DEFAULT_SCHEDULE)[6];
+    // "|| DEFAULT_SCHEDULE" só entra em ação se schedule for undefined/null — um array
+    // vazio ([]) é "truthy" em JS e passava direto, quebrando a busca do dia da semana.
+    const sched = (state.schedule && state.schedule.length === 7) ? state.schedule : DEFAULT_SCHEDULE;
+    return sched.find((s) => s.day === getDOW()) || sched[6] || DEFAULT_SCHEDULE[6];
   };
 
   // ── DYNAMIC METABOLIC CALCULATION UTILS ─────────────────────────────────────
@@ -648,7 +768,7 @@ export default function Home() {
     return s.calType === "heavy"
       ? targets.heavy
       : s.calType === "free"
-      ? { kcal: 9999, protein: 0, carbs: 0, fat: 0 }
+      ? { kcal: Infinity, protein: Infinity, carbs: Infinity, fat: Infinity }
       : targets.normal;
   };
 
@@ -678,48 +798,32 @@ export default function Home() {
     return [...ALL_DEFAULT_FOODS, ...(state.customFoods || [])];
   };
 
+  // Removido o antigo sistema de "bucket" por músculo (que restringia quais exercícios
+  // apareciam em cada divisão, ex: só peito em Push). Sempre tinha brechas — cada músculo
+  // esquecido de algum grupo virava um "exercício sumiu" diferente (ex: trapézio faltando
+  // em Pull). Agora getExercises() simplesmente libera o banco inteiro em qualquer divisão.
+
   const getExercises = (group) => {
     if (!group) return [];
-    
-    const mapMuscleToGroup = (ex) => {
-      const primary = ex.primaryMuscles?.[0];
-      if (!primary) return null;
-      const nameNorm = ex.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      if (primary === 'ombros') {
-        const isRearDelt = nameNorm.includes('invertido') || 
-                           nameNorm.includes('inverso') || 
-                           nameNorm.includes('posterior') || 
-                           nameNorm.includes('rear delt') ||
-                           nameNorm.includes('face pull');
-        if (isRearDelt) return 'Pull';
-        return 'Push';
-      }
-      const pushMuscles = ['peito', 'triceps', 'trapezio'];
-      const pullMuscles = ['dorsais', 'meio-das-costas', 'inferior-das-costas', 'biceps', 'antebracos', 'pescoco'];
-      const legsMuscles = ['quadriceps', 'isquiotibiais', 'gluteos', 'panturrilhas', 'adutores', 'abdutores', 'abdominais'];
-      
-      if (pushMuscles.includes(primary)) return 'Push';
-      if (pullMuscles.includes(primary)) return 'Pull';
-      if (legsMuscles.includes(primary)) return 'Legs';
-      return null;
-    };
 
-    const dbExercises = exercisesDb.filter(ex => {
-      const primary = ex.primaryMuscles?.[0];
-      const mapped = mapMuscleToGroup(ex);
-      if (group === 'Push') return mapped === 'Push';
-      if (group === 'Pull') return mapped === 'Pull';
-      if (group === 'Legs') return mapped === 'Legs';
-      if (group === 'Upper') return mapped === 'Push' || mapped === 'Pull';
-      if (group === 'Lower') return mapped === 'Legs' || primary === 'biceps';
-      return false;
-    }).map(ex => ex.name);
+    // Todo o banco de exercícios fica disponível em qualquer divisão — sem filtro por
+    // "esse músculo só aparece nesse tipo de dia". Um sistema de categorização por
+    // músculo/bucket parecia mais organizado, mas na prática sempre tinha brechas (ex:
+    // trapézio não aparecia em Pull, levantamento terra não aparecia em Legs) e cada
+    // brecha virava um "exercício sumiu" diferente. Mais simples e à prova de brecha:
+    // o usuário vê e pode escolher qualquer exercício do banco em qualquer treino.
+    const dbExercises = exercisesDb.map(ex => ex.name);
+
+    // Exercícios customizados: todos ficam disponíveis em qualquer divisão também, pelo
+    // mesmo motivo.
+    const allCustomNames = new Set();
+    Object.values(state.customExercises || {}).forEach(names => (names || []).forEach(n => allCustomNames.add(n)));
 
     return [
       ...new Set([
         ...(DEFAULT_EXERCISES[group] || []),
         ...dbExercises,
-        ...((state.customExercises && state.customExercises[group]) || []),
+        ...allCustomNames,
       ]),
     ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   };
@@ -1181,11 +1285,21 @@ export default function Home() {
 
   // Salva o plano de exercícios de um grupo (lista editável pelo usuário)
   const saveWorkoutPlan = (group, exercises) => {
+    const updatedPlans = { ...state.workoutPlans, [group]: exercises };
     const updated = {
       ...state,
-      workoutPlans: { ...state.workoutPlans, [group]: exercises },
+      workoutPlans: updatedPlans,
     };
     saveState(updated);
+
+    // Antes esta função só salvava no localStorage — os planos nunca chegavam na
+    // tabela "workout_plans" do Supabase, então "sincronizava" na aparência (o ícone
+    // girava por causa de outras coisas) mas essa parte dos dados nunca ia pra nuvem.
+    if (user) {
+      db.saveWorkoutPlans(user.id, updatedPlans).catch((err) => {
+        console.error("Failed to save workout plans to cloud:", err);
+      });
+    }
   };
 
   // Exclui um plano/divisão inteira (ex: "Legs") da lista de treinos.
@@ -1194,15 +1308,26 @@ export default function Home() {
   const deleteWorkoutPlan = (group) => {
     const updatedPlans = { ...state.workoutPlans };
     delete updatedPlans[group];
-    const updatedSchedule = (state.schedule || []).map((d) =>
+    // Importante: usar DEFAULT_SCHEDULE (não []) como fallback. Se essa função rodar num
+    // instante em que state.schedule ainda está undefined (ex: durante a sincronização com
+    // a nuvem logo após o login), "state.schedule || []" apagava a semana inteira de vez —
+    // porque o resultado ([].map(...) = []) era salvo de volta no estado e no localStorage.
+    const baseSchedule = (state.schedule && state.schedule.length === 7) ? state.schedule : DEFAULT_SCHEDULE;
+    const updatedSchedule = baseSchedule.map((d) =>
       d.group === group ? { ...d, group: null } : d
     );
     saveState({ ...state, workoutPlans: updatedPlans, schedule: updatedSchedule });
+
+    if (user) {
+      db.saveWorkoutPlans(user.id, updatedPlans).catch((err) => {
+        console.error("Failed to save workout plans to cloud:", err);
+      });
+    }
   };
 
-  const saveCustomExercise = async (group, name, muscle = null) => {
+  const saveCustomExercise = async (group, name, primaryMuscle = null, secondaryMuscle = null, equipment = null) => {
     if (!group || !name) return;
-    
+
     const updatedCustomExs = { ...state.customExercises };
     if (!updatedCustomExs[group]) {
       updatedCustomExs[group] = [];
@@ -1212,14 +1337,23 @@ export default function Home() {
     }
 
     const updatedCustomMuscleMap = { ...state.customMuscleMap };
-    if (muscle) {
-      updatedCustomMuscleMap[name] = muscle;
+    if (primaryMuscle) {
+      updatedCustomMuscleMap[name] = primaryMuscle;
+    }
+
+    // Metadados extras (músculo secundário + equipamento) — usados no guia do exercício
+    // e em telas futuras. Guardados à parte pra não mudar o formato de customMuscleMap,
+    // que outras partes do app (getMuscle) esperam como string simples.
+    const updatedCustomExerciseMeta = { ...(state.customExerciseMeta || {}) };
+    if (secondaryMuscle || equipment) {
+      updatedCustomExerciseMeta[name] = { secondary: secondaryMuscle || null, equipment: equipment || null };
     }
 
     const updated = {
       ...state,
       customExercises: updatedCustomExs,
-      customMuscleMap: updatedCustomMuscleMap
+      customMuscleMap: updatedCustomMuscleMap,
+      customExerciseMeta: updatedCustomExerciseMeta,
     };
     saveState(updated);
 
@@ -1464,7 +1598,7 @@ export default function Home() {
                   removeWorkoutLog={removeWorkoutLog}
                   getExercises={getExercises}
                   saveCustomExercise={saveCustomExercise}
-                  workoutPlans={state.workoutPlans || DEFAULT_WORKOUT_PLANS}
+                  workoutPlans={state.workoutPlans || {}}
                   saveWorkoutPlan={saveWorkoutPlan}
                   deleteWorkoutPlan={deleteWorkoutPlan}
                   DEFAULT_EXERCISES={DEFAULT_EXERCISES}
@@ -1476,6 +1610,10 @@ export default function Home() {
                   openHistoryModal={openHistoryModal}
                   openGuideModal={openGuideModal}
   openAiPlanModal={(group)=>setAiPlanModal({open:true,group})}
+                  fireRestTimer={fireRestTimer}
+                  setRestTimerExName={setRestTimerExName}
+                  restTimer={restTimer}
+                  openEditDayModal={openEditDayModal}
                 />
               )}
               {activeTab === "progress" && (
